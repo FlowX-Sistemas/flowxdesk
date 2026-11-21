@@ -1,0 +1,7 @@
+src/
+build/
+dist/
+flowxdesk.local.ps1
+scripts/*.log
+INTERNO.md
+branding/LEIA-ME.md

@@ -1,0 +1,21 @@
+{
+  "name": "FlowXDesk",
+  "tagline": "Acesso remoto FlowX",
+  "colors": {
+    "background": "#17161a",
+    "surface": "#222025",
+    "text": "#f2efe8",
+    "text_muted": "#b7b0a0",
+    "accent": "#e0c48a",
+    "accent_strong": "#b98f45",
+    "success": "#4fc08d",
+    "danger": "#e5705f",
+    "on_accent": "#17161a"
+  },
+  "gradient": [
+    "#e8cf98",
+    "#b98f45"
+  ],
+  "font": "Inter, Segoe UI, system-ui, sans-serif",
+  "notes": "Fundo grafite, destaque champanhe. Contraste: texto sobre fundo >= 12:1; texto escuro (#17161a) sobre accent >= 9:1."
+}
