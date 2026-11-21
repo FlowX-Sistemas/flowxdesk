@@ -80,6 +80,9 @@ EDITS = [
      "child: Text('flowxsistemas.com.br',"),
     ("flutter/android/app/src/main/AndroidManifest.xml", 'android:label="RustDesk"',
      'android:label="FlowXDesk"'),
+    # ID próprio: instala ao lado do RustDesk oficial (namespace do código Kotlin fica igual)
+    ("flutter/android/app/build.gradle", 'applicationId "com.carriez.flutter_hbb"',
+     'applicationId "br.com.flowxsistemas.flowxdesk"'),
     ("flutter/android/app/src/main/AndroidManifest.xml", 'android:label="RustDesk Input"',
      'android:label="FlowXDesk Input"'),
 ]
