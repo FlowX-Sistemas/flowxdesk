@@ -172,8 +172,9 @@ UPDATE_EDITS = [
 # Redesenho FlowX (direção "senha de atendimento", ver .impeccable/surfaces/): arquivos próprios em
 # branding/flutter-overlay/lib/flowx (tema + palco), fontes embutidas e poucos ganchos abaixo.
 UI_EDITS = [
-    ("flutter/pubspec.yaml", "  fonts:\n",
-     "  fonts:\n"
+    # âncora única: "  fonts:\n" sozinho também casa com o "      fonts:" de cada família de ícones
+    ("flutter/pubspec.yaml", "\n  fonts:\n    - family: GestureIcons\n",
+     "\n  fonts:\n"
      "    - family: Inter\n      fonts:\n"
      "        - asset: assets/fonts/Inter-Regular.ttf\n"
      "        - asset: assets/fonts/Inter-Medium.ttf\n          weight: 500\n"
@@ -182,7 +183,8 @@ UI_EDITS = [
      "    - family: JetBrainsMono\n      fonts:\n"
      "        - asset: assets/fonts/JetBrainsMono-Medium.ttf\n          weight: 500\n"
      "        - asset: assets/fonts/JetBrainsMono-Bold.ttf\n          weight: 700\n"
-     "        - asset: assets/fonts/JetBrainsMono-ExtraBold.ttf\n          weight: 800\n"),
+     "        - asset: assets/fonts/JetBrainsMono-ExtraBold.ttf\n          weight: 800\n"
+     "    - family: GestureIcons\n"),
     ("flutter/lib/common.dart", "import 'package:flutter_hbb/common/formatter/id_formatter.dart';\n",
      "import 'package:flutter_hbb/common/formatter/id_formatter.dart';\nimport 'package:flutter_hbb/flowx/flowx_theme.dart';\n"),
     ("flutter/lib/common.dart", "  static ThemeData lightTheme = ThemeData(",
@@ -199,12 +201,26 @@ UI_EDITS = [
     # Vocabulário do painel de atendimento (pt-BR)
     ("src/lang/pt_BR.rs", '("Control Remote Desktop", "Controle um Computador Remoto"),',
      '("Control Remote Desktop", "Chamar um cliente"),'),
+    ("src/lang/pt_BR.rs", '("Enter Remote ID", "Informe o ID Remoto"),', '("Enter Remote ID", "Número do cliente"),'),
     ("src/lang/pt_BR.rs", '("Recent sessions", "Sessões recentes"),', '("Recent sessions", "Chamados recentes"),'),
     ("src/lang/pt_BR.rs", '("One-time Password", "Senha de uso único"),', '("One-time Password", "Senha desta vez"),'),
     # Painel lateral: a situação já aparece no palco
     ("flutter/lib/desktop/pages/connection_page.dart",
      "        if (!isOutgoingOnly) const Divider(height: 1),\n        if (!isOutgoingOnly) OnlineStatusWidget()\n",
      "        // FlowXDesk: situação mostrada no palco da tela inicial\n"),
+    # Rede: cada lado usa o endereço do relay FlowX que ele alcança (branding/rust-src/flowx_net.rs)
+    ("src/lib.rs", "pub mod flowx_tech;\n", "pub mod flowx_tech;\npub mod flowx_net;\n"),
+    ("src/client.rs",
+     "        let mut conn = connect_tcp(\n            ipv4_to_ipv6(relay_server, ipv4 || use_ws_proxy),\n"
+     "            CONNECT_TIMEOUT,\n        )\n        .await\n",
+     "        let mut conn = crate::flowx_net::connect_relay(relay_server, ipv4 || use_ws_proxy)\n        .await\n"),
+    ("src/server.rs",
+     "    let mut stream = socket_client::connect_tcp(\n        socket_client::ipv4_to_ipv6(relay_server, ipv4 || use_ws_proxy),\n"
+     "        CONNECT_TIMEOUT,\n    )\n    .await?;",
+     "    let mut stream = crate::flowx_net::connect_relay(relay_server, ipv4 || use_ws_proxy).await?;"),
+    # O servidor embutido é o da FlowX: sem o aviso "configure seu próprio servidor"
+    ("src/common.rs", "pub fn using_public_server() -> bool {\n    crate::get_custom",
+     "pub fn using_public_server() -> bool {\n    false && crate::get_custom"),
     # Barra da sessão remota: grafite FlowX, cantos maiores, vermelho FlowX
     ("flutter/lib/desktop/widgets/remote_toolbar.dart",
      "  static Color inactiveColor = Colors.grey[800]!;\n  static Color hoverInactiveColor = Colors.grey[850]!;\n\n"
@@ -215,6 +231,11 @@ UI_EDITS = [
      "  static const double iconRadius = 10;"),
     ("flutter/lib/desktop/widgets/remote_toolbar.dart", "  static double menuBorderRadius = isWindows ? 5.0 : 7.0;",
      "  static double menuBorderRadius = 12.0;"),
+    # Painel lateral estreito: clientes em lista por padrão (o usuário ainda troca para grade)
+    ("flutter/lib/common/widgets/peer_tab_page.dart",
+     "    if (uiType != '') {\n      peerCardUiType.value = int.parse(uiType) == 0",
+     "    if (uiType == '' && isDesktop) {\n      peerCardUiType.value = PeerUiType.list;\n"
+     "    } else if (uiType != '') {\n      peerCardUiType.value = int.parse(uiType) == 0"),
     # Celular (cliente compartilhando a tela): o mesmo palco, compacto
     ("flutter/lib/mobile/pages/server_page.dart", "import '../../common.dart';\n",
      "import '../../common.dart';\nimport '../../flowx/flowx_home.dart';\n"),
@@ -232,7 +253,7 @@ UI_EDITS = [
      "            if (!bind.isOutgoingOnly()) buildPresetPasswordWarning(),\n"
      "            Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),\n          ])),\n"
      "        if (!isIncomingOnly) const VerticalDivider(width: 1),\n"
-     "        if (!isIncomingOnly) SizedBox(width: 440, child: buildRightPane(context)),\n"),
+     "        if (!isIncomingOnly) SizedBox(width: MediaQuery.of(context).size.width < 1100 ? 384 : 440, child: buildRightPane(context)),\n"),
 ]
 
 # Cores: troca o azul RustDesk pelo acento FlowX em common.dart
@@ -334,6 +355,7 @@ def main():
         shutil.copyfile(f, SRC / "flutter/assets/fonts" / f.name)
     print("[ui] flowx/*.dart + fontes")
     rs = (ASSETS / "rust-src" / "flowx_tech.rs").read_text(encoding="utf-8")
+    shutil.copyfile(ASSETS / "rust-src" / "flowx_net.rs", SRC / "src/flowx_net.rs")
     (SRC / "src/flowx_tech.rs").write_text(
         rs.replace("__TECH_PUBLIC_KEY__", str(TECH_PUBLIC_KEY)), encoding="utf-8", newline="")
     print("[rust] flowx_tech.rs")

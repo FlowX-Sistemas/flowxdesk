@@ -149,6 +149,8 @@ class FlowXStage extends StatelessWidget {
       child: Consumer<ServerModel>(builder: (context, model, _) {
         final showOneTime = model.approveMode != 'click' && model.verificationMethod != kUsePermanentPassword;
         final muted = FlowX.muted(context);
+        // janela pequena (padrão do Windows ~800 px): tudo mais enxuto, sem rolagem
+        final small = compact || MediaQuery.of(context).size.width < 1100;
         return Container(
           decoration: BoxDecoration(
             gradient: RadialGradient(
@@ -157,24 +159,24 @@ class FlowXStage extends StatelessWidget {
               colors: dark ? const [FlowX.stageGlow, FlowX.ink] : const [FlowX.paper, FlowX.ivory],
             ),
           ),
-          padding: EdgeInsets.symmetric(horizontal: compact ? 24 : 56, vertical: compact ? 28 : 40),
+          padding: EdgeInsets.symmetric(horizontal: small ? 28 : 56, vertical: small ? 24 : 40),
           child: _maybeScroll(
             compact,
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              SizedBox(height: compact ? 8 : 48),
+              SizedBox(height: small ? 8 : 48),
               Text('SEU NÚMERO DE ATENDIMENTO',
                   style: TextStyle(
                       fontFamily: FlowX.sans,
-                      fontSize: 14,
+                      fontSize: small ? 12 : 14,
                       fontWeight: FontWeight.w600,
-                      letterSpacing: 2,
+                      letterSpacing: small ? 1.2 : 2,
                       color: FlowX.accentText(context))),
               const SizedBox(height: 18),
               ValueListenableBuilder<TextEditingValue>(
                 valueListenable: model.serverId,
                 builder: (_, v, __) => GestureDetector(
                   onDoubleTap: () => _copy(v.text, 'Número copiado'),
-                  child: FlowXCalledNumber(v.text.isEmpty ? '··· ··· ···' : v.text, size: compact ? 64 : 120),
+                  child: FlowXCalledNumber(v.text.isEmpty ? '··· ··· ···' : v.text, size: small ? 64 : 120),
                 ),
               ),
               const SizedBox(height: 14),
@@ -182,11 +184,11 @@ class FlowXStage extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 640),
                 child: Text(
                   'Dite este número ao técnico da FlowX. Você acompanha tudo na tela e pode encerrar quando quiser.',
-                  style: TextStyle(fontFamily: FlowX.sans, fontSize: compact ? 16 : 20, height: 1.4, color: muted),
+                  style: TextStyle(fontFamily: FlowX.sans, fontSize: small ? 16 : 20, height: 1.4, color: muted),
                 ),
               ),
-              const SizedBox(height: 28),
-              Wrap(spacing: 16, runSpacing: 16, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              SizedBox(height: small ? 18 : 28),
+              Wrap(spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
                 _Tile(
                   label: 'Senha desta vez',
                   trailing: showOneTime
