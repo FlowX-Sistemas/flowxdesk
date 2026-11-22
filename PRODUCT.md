@@ -36,7 +36,7 @@ Acesso remoto da FlowX Sistemas para suporte aos seus clientes, com servidor pr�
 ## Brand Commitments
 
 - Nome: **FlowXDesk**, subtítulo "Acesso remoto FlowX".
-- Kit de marca do CRM FlowX: `branding/` (origem `D:\Sistemas\crm-comercial\public\brand\flowxdesk`): ícone X-flow com cursor, tile grafite e traço champanhe; cores e fonte em `branding/flowxdesk-cores.json` (grafite #17161a, marfim #f8f5ef, champanhe #e0c48a, champanhe forte #b98f45, fonte Inter). Não usar o logo azul/índigo antigo.
+- Kit de marca do CRM FlowX: `branding/` (origem: kit do CRM FlowX): ícone X-flow com cursor, tile grafite e traço champanhe; cores e fonte em `branding/flowxdesk-cores.json` (grafite #17161a, marfim #f8f5ef, champanhe #e0c48a, champanhe forte #b98f45, fonte Inter). Não usar o logo azul/índigo antigo.
 - Voz: português simples e acolhedor, sem jargão ("Informe este número ao técnico da FlowX").
 
 ## Evidence on Hand
