@@ -21,10 +21,10 @@ object FlowXUpdater {
     private const val TAG = "FlowXUpdater"
     private const val PREFIX = "https://github.com/__UPDATE_REPO__/releases/download/"
     private const val META_URL = "https://github.com/__UPDATE_REPO__/releases/latest/download/flowxdesk-update.json"
-    private const val INTERVAL_MS = 12L * 3600 * 1000
+    private const val INTERVAL_MS = 1L * 3600 * 1000
     private const val MAX_APK = 300L * 1024 * 1024
 
-    /** Chamado ao abrir o app; no máximo uma checagem a cada 12 h. */
+    /** Chamado ao abrir o app; no máximo uma checagem por hora. */
     fun maybeCheck(ctx: Context) {
         val app = ctx.applicationContext
         val prefs = app.getSharedPreferences("flowx_updater", Context.MODE_PRIVATE)
