@@ -87,6 +87,53 @@ EDITS = [
      'android:label="FlowXDesk Input"'),
 ]
 
+# Atualização automática (Windows): reaproveita o atualizador do RustDesk (download + sha256 + metadados
+# assinados em ed25519 + instalação silenciosa), trocando a origem para as Releases da FlowX e a chave.
+# A chave privada fica fora do repositório (secret UPDATE_SIGNING_KEY); scripts/release.py assina.
+UPDATE_REPO = ("FlowX-Sistemas", "flowxdesk")
+UPDATE_KEY_ID = "flowx-2026-ed25519"
+UPDATE_PUBLIC_KEY = [57, 127, 57, 166, 94, 128, 166, 167, 245, 178, 40, 61, 76, 243, 148, 187,
+                     168, 240, 145, 128, 123, 1, 44, 240, 250, 2, 69, 115, 103, 214, 234, 198]
+_O, _R = UPDATE_REPO
+UPDATE_EDITS = [
+    # Versão mais nova = asset flowxdesk-version.json da release "latest" ({"url": ".../releases/tag/X.Y.Z"})
+    ("libs/hbb_common/src/lib.rs", 'const URL: &str = "https://api.rustdesk.com/version/latest";',
+     f'const URL: &str = "https://github.com/{_O}/{_R}/releases/latest/download/flowxdesk-version.json";'),
+    ("src/common.rs", "client.post(&url).json(&request).send().await",
+     "client.get(&url).send().await"),
+    ("src/common.rs", '["rustdesk", "rustdesk", "releases", "tag",', f'["{_O}", "{_R}", "releases", "tag",'),
+    ("src/updater/artifact.rs", 'format!("https://github.com/rustdesk/rustdesk/releases/download/{release_id}/");',
+     f'format!("https://github.com/{_O}/{_R}/releases/download/{{release_id}}/");'),
+    ("src/updater/artifact.rs", '"{expected_artifact_url_prefix}rustdesk-update.json"',
+     '"{expected_artifact_url_prefix}flowxdesk-update.json"'),
+    ("src/updater/artifact.rs", 'if owner != "rustdesk"\n        || repo != "rustdesk"',
+     f'if owner != "{_O}"\n        || repo != "{_R}"'),
+    ("src/update_metadata.rs", 'key_id: "2026-ed25519-main",', f'key_id: "{UPDATE_KEY_ID}",'),
+    ("src/update_metadata.rs",
+     "public_key: [\n        52, 214, 32, 65, 191, 134, 137, 75, 157, 74, 67, 221, 150, 161, 118, 215, 218, 35, 236,\n"
+     "        156, 127, 120, 133, 156, 197, 141, 37, 22, 47, 106, 181, 177,\n    ],",
+     f"public_key: {UPDATE_PUBLIC_KEY},"),
+    ("src/update_metadata.rs", 'const UPDATE_APP: &str = "rustdesk";', 'const UPDATE_APP: &str = "flowxdesk";'),
+    ("src/update_metadata.rs", 'PUBLIC_UPDATE_PACKAGE_ID: &str = "rustdesk";',
+     'PUBLIC_UPDATE_PACKAGE_ID: &str = "flowxdesk";'),
+    # Android: atualizador próprio (branding/android-src/FlowXUpdater.kt), checado ao abrir o app
+    ("flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainActivity.kt",
+     "    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n",
+     "    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n"
+     "        FlowXUpdater.maybeCheck(this)\n"),
+    ("flutter/android/app/src/main/AndroidManifest.xml",
+     '    <uses-permission android:name="android.permission.INTERNET" />\n',
+     '    <uses-permission android:name="android.permission.INTERNET" />\n'
+     '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n'),
+    ("flutter/android/app/src/main/AndroidManifest.xml", "    </application>",
+     '        <receiver android:name=".FlowXUpdateReceiver" android:exported="false" />\n    </application>'),
+    # Atualização automática ligada por padrão (o usuário ainda pode desligar nas configurações)
+    ("libs/hbb_common/src/config.rs",
+     "pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();",
+     'pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([(\n'
+     '        "allow-auto-update".to_owned(), "Y".to_owned())]));'),
+]
+
 # Cores: troca o azul RustDesk pelo acento FlowX em common.dart
 COLOR_EDITS = [
     ("flutter/lib/common.dart", "Color(0xFF0071FF)", f"Color({ACCENT})"),
@@ -121,8 +168,38 @@ def edit(rel, old, new):
     return "ok"
 
 
+def set_version():
+    """FLOWXDESK_VERSION=X.Y.Z troca a versão (Rust, pacote Windows e Android) sem mexer no RustDesk.
+    O atualizador só instala versão MAIOR que a instalada: para uma release só da FlowX, suba o patch."""
+    import os
+    import re
+    v = os.environ.get("FLOWXDESK_VERSION", "").strip()
+    if not v:
+        return
+    if not re.fullmatch(r"\d+\.\d+\.\d+", v):
+        sys.exit(f"ERRO: FLOWXDESK_VERSION inválida: {v} (use X.Y.Z)")
+    a, b, c = map(int, v.split("."))
+    code = a * 10000 + b * 100 + c  # versionCode do Android cresce junto com a versão
+    for rel, pat, rep in [
+        ("Cargo.toml", r'(?m)\A(\[package\]\nname = "rustdesk"\n)version = "[^"]+"', rf'\g<1>version = "{v}"'),
+        ("libs/portable/Cargo.toml", r'(?m)\A(\[package\]\nname = "rustdesk-portable-packer"\n)version = "[^"]+"',
+         rf'\g<1>version = "{v}"'),
+        ("Cargo.lock", r'(name = "rustdesk"\nversion = )"[^"]+"', rf'\g<1>"{v}"'),
+        ("Cargo.lock", r'(name = "rustdesk-portable-packer"\nversion = )"[^"]+"', rf'\g<1>"{v}"'),
+        ("flutter/pubspec.yaml", r"(?m)^version: .+$", f"version: {v}+{code}"),
+    ]:
+        p = SRC / rel
+        s = p.read_text(encoding="utf-8")
+        s2, n = re.subn(pat, rep, s, count=1)
+        if n != 1:
+            sys.exit(f"ERRO: versão não encontrada em {rel}")
+        p.write_text(s2, encoding="utf-8", newline="")
+    print(f"[versão] {v} (android versionCode base {code})")
+
+
 def main():
-    for rel, old, new in EDITS + COLOR_EDITS:
+    set_version()
+    for rel, old, new in EDITS + COLOR_EDITS + UPDATE_EDITS:
         print(f"[{edit(rel, old, new)}] {rel}")
     for name, dests in ICONS.items():
         src = ASSETS / name
@@ -133,6 +210,10 @@ def main():
             if (SRC / d).parent.exists():
                 shutil.copyfile(src, SRC / d)
         print(f"[ícone] {name} -> {', '.join(dests)}")
+    kt = (ASSETS / "android-src" / "FlowXUpdater.kt").read_text(encoding="utf-8")
+    (SRC / "flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/FlowXUpdater.kt").write_text(
+        kt.replace("__UPDATE_REPO__", f"{_O}/{_R}"), encoding="utf-8", newline="")
+    print("[android] FlowXUpdater.kt")
     android = ASSETS / "android"  # res/mipmap-* gerados do logo
     if android.exists():
         shutil.copytree(android, SRC / "flutter/android/app/src/main/res", dirs_exist_ok=True)
