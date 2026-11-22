@@ -53,6 +53,9 @@ def main():
     if not re.fullmatch(r"\d+\.\d+\.\d+", v):
         sys.exit("versão deve ser X.Y.Z")
 
+    for f in (a.exe, a.apk):
+        if f and "tecnico" in str(f).lower():
+            sys.exit("ERRO: o build TÉCNICO tem a chave privada e nunca pode ser publicado")
     out = ROOT / "build" / f"release-{v}"
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)

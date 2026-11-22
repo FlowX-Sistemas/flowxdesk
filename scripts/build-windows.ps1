@@ -1,6 +1,8 @@
-# Gera o instalador Windows do FlowXDesk: dist\FlowXDesk-<versão>-x64.exe
+﻿# Gera o instalador Windows do FlowXDesk: dist\FlowXDesk-<versão>-x64.exe
 # Pré-requisito: scripts\setup-toolchain.ps1 (uma vez) e o arquivo flowxdesk.local.ps1 (servidor/key, fora do git).
-param([string]$Tools = 'D:\FlowXDesk-toolchain', [int]$Jobs = 12)
+# -Tecnico: build INTERNO com a chave privada do técnico (entra direto nos clientes). NUNCA publicar.
+param([string]$Tools = 'D:\FlowXDesk-toolchain', [int]$Jobs = 12, [switch]$Tecnico,
+      [string]$TechKeyFile = 'D:\Sistemas\_segredos\flowxdesk-tecnico.key')
 $ErrorActionPreference = 'Continue'
 function Assert-Ok($what) { if ($LASTEXITCODE) { throw "falhou: $what (exit $LASTEXITCODE)" } }
 $Root = (Resolve-Path "$PSScriptRoot\..").Path
@@ -18,6 +20,7 @@ $env:LIBCLANG_PATH = "$Tools\llvm\bin"
 $env:VCPKG_ROOT = "$Tools\vcpkg"
 $env:CARGO_BUILD_JOBS = "$Jobs"     # limita CPU/RAM (VM de produção no mesmo host)
 $env:PYTHONIOENCODING = 'utf-8'
+if ($Tecnico) { $env:FLOWX_TECH_KEY = (Get-Content $TechKeyFile -Raw).Trim() } else { Remove-Item Env:FLOWX_TECH_KEY -ErrorAction SilentlyContinue }
 $env:PUB_CACHE = "$Tools\pub-cache"   # fora do AppData: o terminal do Claude vê um AppData virtual que o compilador do Flutter não enxerga
 
 python -I "$Root\scripts\brand.py" $Src; Assert-Ok 'brand.py'
@@ -45,8 +48,9 @@ try {
   Pop-Location
   git checkout -- res/manifest.xml
 
-  New-Item -ItemType Directory -Force "$Root\dist" | Out-Null
-  $out = "$Root\dist\FlowXDesk-$ver-x64.exe"
+  $distDir = if ($Tecnico) { "$Root\dist\tecnico" } else { "$Root\dist" }
+  New-Item -ItemType Directory -Force $distDir | Out-Null
+  $out = if ($Tecnico) { "$distDir\FlowXDesk-Tecnico-$ver-x64.exe" } else { "$distDir\FlowXDesk-$ver-x64.exe" }
   Copy-Item target\release\rustdesk-portable-packer.exe $out -Force
   Write-Host "OK: $out"
 } finally { Pop-Location }

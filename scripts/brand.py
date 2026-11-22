@@ -73,6 +73,10 @@ EDITS = [
      f"              InkWell(\n                  onTap: () => launchUrlString('{SOURCE_URL}'),\n"
      "                  child: Text('Código-fonte (AGPL-3.0, baseado no RustDesk)', style: linkStyle)\n"
      "                      .marginSymmetric(vertical: 4.0)),\n"),
+    # Sem "Desenvolvido por RustDesk" na tela inicial; crédito, licença e código-fonte ficam na tela Sobre
+    ("flutter/lib/common.dart",
+     'Widget loadPowered(BuildContext context) {\n  if (bind.mainGetBuildinOption(key: "hide-powered-by-me") == \'Y\') {',
+     'Widget loadPowered(BuildContext context) {\n  if (true) { // FlowXDesk'),
     # Celular: site
     ("flutter/lib/mobile/pages/settings_page.dart", "const url = 'https://rustdesk.com/';",
      f"const url = '{SITE_URL}';"),
@@ -95,6 +99,9 @@ UPDATE_KEY_ID = "flowx-2026-ed25519"
 UPDATE_PUBLIC_KEY = [57, 127, 57, 166, 94, 128, 166, 167, 245, 178, 40, 61, 76, 243, 148, 187,
                      168, 240, 145, 128, 123, 1, 44, 240, 250, 2, 69, 115, 103, 214, 234, 198]
 _O, _R = UPDATE_REPO
+# Chave PÚBLICA do técnico FlowX (a privada fica em _segredos e só entra no build técnico, nunca no público)
+TECH_PUBLIC_KEY = [65, 246, 247, 251, 53, 42, 93, 241, 50, 63, 45, 34, 138, 16, 101, 47,
+                   168, 36, 130, 9, 229, 252, 216, 136, 79, 186, 190, 87, 114, 150, 49, 129]
 UPDATE_EDITS = [
     # Versão mais nova = asset flowxdesk-version.json da release "latest" ({"url": ".../releases/tag/X.Y.Z"})
     ("libs/hbb_common/src/lib.rs", 'const URL: &str = "https://api.rustdesk.com/version/latest";',
@@ -127,11 +134,105 @@ UPDATE_EDITS = [
      '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n'),
     ("flutter/android/app/src/main/AndroidManifest.xml", "    </application>",
      '        <receiver android:name=".FlowXUpdateReceiver" android:exported="false" />\n    </application>'),
+    # Acesso de técnico sem senha (branding/rust-src/flowx_tech.rs)
+    ("src/lib.rs", "mod keyboard;\n", "mod keyboard;\npub mod flowx_tech;\n"),
+    ("src/client.rs",
+     "    let password = if password.is_empty() {\n        // login without password, the remote side can click accept\n",
+     "    // FlowXDesk Técnico: sem senha, assina o desafio do PC (no build público sign_login devolve None)\n"
+     "    let flowx_sig = if password.is_empty() {\n"
+     "        crate::flowx_tech::sign_login(&lc.read().unwrap().id, hash.challenge.as_bytes())\n"
+     "    } else {\n        None\n    };\n"
+     "    let password = if let Some(sig) = flowx_sig {\n        sig\n    } else if password.is_empty() {\n"
+     "        // login without password, the remote side can click accept\n"),
+    ("src/server/connection.rs",
+     "    fn validate_password(&mut self, allow_permanent_password: bool) -> bool {\n",
+     "    fn validate_password(&mut self, allow_permanent_password: bool) -> bool {\n"
+     "        if crate::flowx_tech::verify_login(&Config::get_id(), self.hash.challenge.as_bytes(), &self.lr.password) {\n"
+     "            log::info!(\"FlowXDesk: acesso de técnico FlowX (assinatura válida)\");\n"
+     "            self.set_conn_audit_primary_auth(ConnAuditPrimaryAuth::PermanentPassword);\n"
+     "            return true;\n        }\n"),
+    # Auto-elevar: aberto sem estar instalado no Windows, instala-se como serviço sozinho (um "Sim" no UAC),
+    # igual a clicar em "Instalar" com as opções padrão. Depois o técnico controla telas de admin/UAC.
+    ("flutter/lib/desktop/pages/desktop_home_page.dart",
+     "  void initState() {\n    super.initState();\n    _updateTimer = periodic_immediate(",
+     "  void initState() {\n    super.initState();\n"
+     "    if (isWindows && !bind.isDisableInstallation() && !bind.mainIsInstalled() && !bind.isOutgoingOnly()) {\n"
+     "      Future.delayed(const Duration(milliseconds: 800), () async {\n"
+     "        await rustDeskWinManager.closeAllSubWindows();\n"
+     "        bind.installInstallMe(options: ' startmenu desktopicon', path: bind.installInstallPath());\n"
+     "      });\n    }\n"
+     "    _updateTimer = periodic_immediate("),
     # Atualização automática ligada por padrão (o usuário ainda pode desligar nas configurações)
     ("libs/hbb_common/src/config.rs",
      "pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();",
      'pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([(\n'
      '        "allow-auto-update".to_owned(), "Y".to_owned())]));'),
+]
+
+# Redesenho FlowX (direção "senha de atendimento", ver .impeccable/surfaces/): arquivos próprios em
+# branding/flutter-overlay/lib/flowx (tema + palco), fontes embutidas e poucos ganchos abaixo.
+UI_EDITS = [
+    ("flutter/pubspec.yaml", "  fonts:\n",
+     "  fonts:\n"
+     "    - family: Inter\n      fonts:\n"
+     "        - asset: assets/fonts/Inter-Regular.ttf\n"
+     "        - asset: assets/fonts/Inter-Medium.ttf\n          weight: 500\n"
+     "        - asset: assets/fonts/Inter-SemiBold.ttf\n          weight: 600\n"
+     "        - asset: assets/fonts/Inter-Bold.ttf\n          weight: 700\n"
+     "    - family: JetBrainsMono\n      fonts:\n"
+     "        - asset: assets/fonts/JetBrainsMono-Medium.ttf\n          weight: 500\n"
+     "        - asset: assets/fonts/JetBrainsMono-Bold.ttf\n          weight: 700\n"
+     "        - asset: assets/fonts/JetBrainsMono-ExtraBold.ttf\n          weight: 800\n"),
+    ("flutter/lib/common.dart", "import 'package:flutter_hbb/common/formatter/id_formatter.dart';\n",
+     "import 'package:flutter_hbb/common/formatter/id_formatter.dart';\nimport 'package:flutter_hbb/flowx/flowx_theme.dart';\n"),
+    ("flutter/lib/common.dart", "  static ThemeData lightTheme = ThemeData(",
+     "  static ThemeData lightTheme = flowxTheme(_rustdeskLightTheme, Brightness.light);\n"
+     "  static ThemeData _rustdeskLightTheme = ThemeData("),
+    ("flutter/lib/common.dart", "  static ThemeData darkTheme = ThemeData(",
+     "  static ThemeData darkTheme = flowxTheme(_rustdeskDarkTheme, Brightness.dark);\n"
+     "  static ThemeData _rustdeskDarkTheme = ThemeData("),
+    # Escuro por padrão (o usuário ainda escolhe claro/sistema nas configurações)
+    ("flutter/lib/common.dart",
+     "    return themeModeFromString(bind.mainGetLocalOption(key: kCommConfKeyTheme));",
+     "    final v = bind.mainGetLocalOption(key: kCommConfKeyTheme);\n"
+     "    return v.isEmpty ? ThemeMode.dark : themeModeFromString(v);"),
+    # Vocabulário do painel de atendimento (pt-BR)
+    ("src/lang/pt_BR.rs", '("Control Remote Desktop", "Controle um Computador Remoto"),',
+     '("Control Remote Desktop", "Chamar um cliente"),'),
+    ("src/lang/pt_BR.rs", '("Recent sessions", "Sessões recentes"),', '("Recent sessions", "Chamados recentes"),'),
+    ("src/lang/pt_BR.rs", '("One-time Password", "Senha de uso único"),', '("One-time Password", "Senha desta vez"),'),
+    # Painel lateral: a situação já aparece no palco
+    ("flutter/lib/desktop/pages/connection_page.dart",
+     "        if (!isOutgoingOnly) const Divider(height: 1),\n        if (!isOutgoingOnly) OnlineStatusWidget()\n",
+     "        // FlowXDesk: situação mostrada no palco da tela inicial\n"),
+    # Barra da sessão remota: grafite FlowX, cantos maiores, vermelho FlowX
+    ("flutter/lib/desktop/widgets/remote_toolbar.dart",
+     "  static Color inactiveColor = Colors.grey[800]!;\n  static Color hoverInactiveColor = Colors.grey[850]!;\n\n"
+     "  static const Color redColor = Colors.redAccent;\n  static const Color hoverRedColor = Colors.red;",
+     "  static Color inactiveColor = const Color(0xFF2A2730);\n  static Color hoverInactiveColor = const Color(0xFF34313A);\n\n"
+     "  static const Color redColor = Color(0xFFE5705F);\n  static const Color hoverRedColor = Color(0xFFC9533F);"),
+    ("flutter/lib/desktop/widgets/remote_toolbar.dart", "  static const double iconRadius = 8;",
+     "  static const double iconRadius = 10;"),
+    ("flutter/lib/desktop/widgets/remote_toolbar.dart", "  static double menuBorderRadius = isWindows ? 5.0 : 7.0;",
+     "  static double menuBorderRadius = 12.0;"),
+    # Celular (cliente compartilhando a tela): o mesmo palco, compacto
+    ("flutter/lib/mobile/pages/server_page.dart", "import '../../common.dart';\n",
+     "import '../../common.dart';\nimport '../../flowx/flowx_home.dart';\n"),
+    ("flutter/lib/mobile/pages/server_page.dart", "                            ? ServerInfo()",
+     "                            ? const FlowXStage(compact: true)"),
+    # Tela inicial desktop: o palco com o número no lugar do painel estreito; conexão vira painel lateral
+    ("flutter/lib/desktop/pages/desktop_home_page.dart", "import 'package:flutter_hbb/common.dart';\n",
+     "import 'package:flutter_hbb/common.dart';\nimport 'package:flutter_hbb/flowx/flowx_home.dart';\n"),
+    ("flutter/lib/desktop/pages/desktop_home_page.dart",
+     "        buildLeftPane(context),\n"
+     "        if (!isIncomingOnly) const VerticalDivider(width: 1),\n"
+     "        if (!isIncomingOnly) Expanded(child: buildRightPane(context)),\n",
+     "        if (isIncomingOnly)\n          buildLeftPane(context)\n        else\n"
+     "          Expanded(\n              child: FlowXStage(extras: [\n"
+     "            if (!bind.isOutgoingOnly()) buildPresetPasswordWarning(),\n"
+     "            Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),\n          ])),\n"
+     "        if (!isIncomingOnly) const VerticalDivider(width: 1),\n"
+     "        if (!isIncomingOnly) SizedBox(width: 440, child: buildRightPane(context)),\n"),
 ]
 
 # Cores: troca o azul RustDesk pelo acento FlowX em common.dart
@@ -197,9 +298,26 @@ def set_version():
     print(f"[versão] {v} (android versionCode base {code})")
 
 
+def recolor_blues():
+    """Azuis fixos do RustDesk (Colors.blue, blueAccent, blue[700]!, blue.shade300) -> dourado FlowX (AA com branco)."""
+    import re
+    pat = re.compile(r"Colors\.blue(?:Accent)?(?:\[\d+\]!?|\.shade\d+)?(?![A-Za-z])")
+    n = 0
+    for p in (SRC / "flutter/lib").rglob("*.dart"):
+        if "flowx" in p.parts:
+            continue
+        s = p.read_text(encoding="utf-8")
+        s2, k = pat.subn("const Color(0xFF8F6A2C)", s)
+        if k:
+            p.write_text(s2, encoding="utf-8", newline="")
+            n += k
+    print(f"[cores] {n} azuis fixos trocados")
+
+
 def main():
     set_version()
-    for rel, old, new in EDITS + COLOR_EDITS + UPDATE_EDITS:
+    recolor_blues()
+    for rel, old, new in EDITS + COLOR_EDITS + UPDATE_EDITS + UI_EDITS:
         print(f"[{edit(rel, old, new)}] {rel}")
     for name, dests in ICONS.items():
         src = ASSETS / name
@@ -210,6 +328,15 @@ def main():
             if (SRC / d).parent.exists():
                 shutil.copyfile(src, SRC / d)
         print(f"[ícone] {name} -> {', '.join(dests)}")
+    shutil.copytree(ASSETS / "flutter-overlay" / "lib", SRC / "flutter/lib", dirs_exist_ok=True)
+    (SRC / "flutter/assets/fonts").mkdir(parents=True, exist_ok=True)
+    for f in (ASSETS / "fonts").glob("*.ttf"):
+        shutil.copyfile(f, SRC / "flutter/assets/fonts" / f.name)
+    print("[ui] flowx/*.dart + fontes")
+    rs = (ASSETS / "rust-src" / "flowx_tech.rs").read_text(encoding="utf-8")
+    (SRC / "src/flowx_tech.rs").write_text(
+        rs.replace("__TECH_PUBLIC_KEY__", str(TECH_PUBLIC_KEY)), encoding="utf-8", newline="")
+    print("[rust] flowx_tech.rs")
     kt = (ASSETS / "android-src" / "FlowXUpdater.kt").read_text(encoding="utf-8")
     (SRC / "flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/FlowXUpdater.kt").write_text(
         kt.replace("__UPDATE_REPO__", f"{_O}/{_R}"), encoding="utf-8", newline="")
