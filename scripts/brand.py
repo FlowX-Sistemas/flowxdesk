@@ -276,8 +276,8 @@ UI_EDITS = [
      "    return buildRemoteBlock(\n        block: _block, mask: true, use: canBeBlocked, child: child);",
      "    return FlowXLicenseGate(\n        child: buildRemoteBlock(\n            block: _block, mask: true, use: canBeBlocked, child: child));"),
     ("flutter/lib/desktop/pages/desktop_home_page.dart",
-     "import 'package:flutter_hbb/flowx/flowx_home.dart';\n",
-     "import 'package:flutter_hbb/flowx/flowx_home.dart';\nimport 'package:flutter_hbb/flowx/flowx_activation.dart';\n"),
+     "import 'package:flutter_hbb/consts.dart';\n",
+     "import 'package:flutter_hbb/consts.dart';\nimport 'package:flutter_hbb/flowx/flowx_activation.dart';\n"),
     ("flutter/lib/mobile/pages/home_page.dart", "          body: _pages.elementAt(_selectedIndex),",
      "          body: FlowXLicenseGate(child: _pages.elementAt(_selectedIndex)),"),
     ("flutter/lib/mobile/pages/home_page.dart", "import 'package:flutter/material.dart';\n",
@@ -384,9 +384,9 @@ def recolor_blues():
 
 def main():
     set_version()
-    recolor_blues()
     for rel, old, new in EDITS + COLOR_EDITS + UPDATE_EDITS + UI_EDITS:
         print(f"[{edit(rel, old, new)}] {rel}")
+    recolor_blues()  # depois das edições: elas procuram as cores originais
     for name, dests in ICONS.items():
         src = ASSETS / name
         if not src.exists():

@@ -94,6 +94,7 @@ jobs:
           RENDEZVOUS_SERVER: ${{ secrets.RENDEZVOUS_SERVER }}
           RENDEZVOUS_SERVER_LAN: ${{ secrets.RENDEZVOUS_SERVER_LAN }}
           RS_PUB_KEY: ${{ secrets.RS_PUB_KEY }}
+          FLOWX_LICENSE_URL: ${{ secrets.FLOWX_LICENSE_URL }}  # vazio = licenciamento desligado
         run: |
           test -n "$RENDEZVOUS_SERVER" && test -n "$RS_PUB_KEY"
           # secret vazio não pode virar servidor "" no option_env!
