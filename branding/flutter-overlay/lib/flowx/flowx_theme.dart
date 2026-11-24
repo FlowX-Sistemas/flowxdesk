@@ -67,7 +67,53 @@ ThemeData flowxTheme(ThemeData base, Brightness b) {
   ).copyWith(
     overlayColor: MaterialStatePropertyAll(FlowX.champagneStrong.withOpacity(0.25)),
   );
+  final accent = FlowX.accentPrimary(dark);
   return base.copyWith(
+    // Material 2 (useMaterial3: false) ainda pinta muita coisa com primaryColor (azul por padrão):
+    // barras de app, abas, navegação do celular, foco e seleção.
+    primaryColor: dark ? FlowX.surface : FlowX.champagneInk,
+    primaryColorLight: FlowX.champagne,
+    primaryColorDark: FlowX.champagneInk,
+    indicatorColor: FlowX.champagne,
+    focusColor: FlowX.champagne.withOpacity(0.25),
+    highlightColor: base.highlightColor == Colors.transparent ? Colors.transparent : FlowX.champagne.withOpacity(0.12),
+    secondaryHeaderColor: surface,
+    unselectedWidgetColor: FlowX.muted2(dark),
+    appBarTheme: base.appBarTheme.copyWith(
+      backgroundColor: dark ? FlowX.inkDeep : FlowX.paper,
+      foregroundColor: text,
+      elevation: 0,
+      titleTextStyle: TextStyle(fontFamily: FlowX.sans, fontWeight: FontWeight.w700, fontSize: 18, color: text),
+      iconTheme: IconThemeData(color: text),
+    ),
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      backgroundColor: dark ? FlowX.inkDeep : FlowX.paper,
+      selectedItemColor: accent,
+      unselectedItemColor: FlowX.muted2(dark),
+      type: BottomNavigationBarType.fixed,
+    ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: FlowX.champagne,
+      foregroundColor: FlowX.ink,
+    ),
+    radioTheme: base.radioTheme.copyWith(
+      fillColor: MaterialStateProperty.resolveWith((s) => s.contains(MaterialState.selected) ? accent : null),
+    ),
+    sliderTheme: base.sliderTheme.copyWith(activeTrackColor: accent, thumbColor: accent, inactiveTrackColor: line),
+    textButtonTheme: TextButtonThemeData(
+      style: (base.textButtonTheme.style ?? const ButtonStyle()).copyWith(
+        foregroundColor: MaterialStatePropertyAll(accent),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: dark ? FlowX.ivory : FlowX.ink,
+      contentTextStyle: TextStyle(fontFamily: FlowX.sans, color: dark ? FlowX.ink : FlowX.ivory),
+      actionTextColor: dark ? FlowX.champagneInk : FlowX.champagne,
+    ),
+    popupMenuTheme: base.popupMenuTheme.copyWith(
+      color: surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(FlowX.radius), side: BorderSide(color: line)),
+    ),
     scaffoldBackgroundColor: bg,
     dialogBackgroundColor: surface,
     cardColor: surface,

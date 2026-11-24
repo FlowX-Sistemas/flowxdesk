@@ -99,6 +99,9 @@ UPDATE_KEY_ID = "flowx-2026-ed25519"
 UPDATE_PUBLIC_KEY = [57, 127, 57, 166, 94, 128, 166, 167, 245, 178, 40, 61, 76, 243, 148, 187,
                      168, 240, 145, 128, 123, 1, 44, 240, 250, 2, 69, 115, 103, 214, 234, 198]
 _O, _R = UPDATE_REPO
+# Chave PÚBLICA que assina as licenças no Hub (a privada fica só no Hub: segredo FLOWXDESK_LICENSE_SIGNING_KEY)
+LICENSE_PUBLIC_KEY = [198, 151, 239, 68, 146, 39, 99, 138, 71, 190, 147, 151, 169, 72, 147, 15,
+                      168, 25, 95, 174, 22, 112, 86, 167, 164, 118, 11, 177, 175, 93, 190, 141]
 # Chave PÚBLICA do técnico FlowX (a privada fica em _segredos e só entra no build técnico, nunca no público)
 TECH_PUBLIC_KEY = [65, 246, 247, 251, 53, 42, 93, 241, 50, 63, 45, 34, 138, 16, 101, 47,
                    168, 36, 130, 9, 229, 252, 216, 136, 79, 186, 190, 87, 114, 150, 49, 129]
@@ -128,6 +131,10 @@ UPDATE_EDITS = [
      "    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n",
      "    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n"
      "        FlowXUpdater.maybeCheck(this)\n"),
+    # também ao voltar para o app (o Android costuma manter a activity viva)
+    ("flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainActivity.kt",
+     "    override fun onResume() {\n        super.onResume()\n",
+     "    override fun onResume() {\n        super.onResume()\n        FlowXUpdater.maybeCheck(this)\n"),
     ("flutter/android/app/src/main/AndroidManifest.xml",
      '    <uses-permission android:name="android.permission.INTERNET" />\n',
      '    <uses-permission android:name="android.permission.INTERNET" />\n'
@@ -162,6 +169,12 @@ UPDATE_EDITS = [
      "        bind.installInstallMe(options: ' startmenu desktopicon', path: bind.installInstallPath());\n"
      "      });\n    }\n"
      "    _updateTimer = periodic_immediate("),
+    # Sem conta/login do RustDesk nem catálogo na nuvem dele: o FlowXDesk usa licença do Hub FlowX
+    ("libs/hbb_common/src/config.rs",
+     "pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = Default::default();",
+     'pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([\n'
+     '        ("disable-account".to_owned(), "Y".to_owned()),\n'
+     '        ("disable-ab".to_owned(), "Y".to_owned()),\n    ]));'),
     # Atualização automática ligada por padrão (o usuário ainda pode desligar nas configurações)
     ("libs/hbb_common/src/config.rs",
      "pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();",
@@ -208,6 +221,28 @@ UI_EDITS = [
     ("flutter/lib/desktop/pages/connection_page.dart",
      "        if (!isOutgoingOnly) const Divider(height: 1),\n        if (!isOutgoingOnly) OnlineStatusWidget()\n",
      "        // FlowXDesk: situação mostrada no palco da tela inicial\n"),
+    # Licença do Hub (branding/rust-src/flowx_license.rs): desligada se o build não tiver FLOWX_LICENSE_URL
+    # (o técnico por licença entra pelos mesmos ganchos do acesso técnico: ver flowx_tech.rs)
+    ("src/lib.rs", "/// cbindgen:ignore\npub mod platform;\n",
+     "pub mod flowx_license;\n/// cbindgen:ignore\npub mod platform;\n"),
+    ("src/server/connection.rs",
+     "        if let Some(message::Union::LoginRequest(lr)) = msg.union {\n"
+     "            if !self.check_login_scope(&lr).await {\n                return false;\n            }\n",
+     "        if let Some(message::Union::LoginRequest(lr)) = msg.union {\n"
+     "            if !crate::flowx_license::device_licensed() {\n"
+     "                self.send_login_error(\"Este computador está sem licença FlowXDesk válida\").await;\n"
+     "                return false;\n            }\n"
+     "            if !self.check_login_scope(&lr).await {\n                return false;\n            }\n"),
+    ("src/rendezvous_mediator.rs", "        check_zombie();\n",
+     "        crate::flowx_license::start_refresh_loop();\n        check_zombie();\n"),
+    ("src/flutter_ffi.rs", "pub fn main_is_using_public_server() -> bool {\n",
+     "pub fn main_flowx_license_status() -> SyncReturn<String> {\n"
+     "    SyncReturn(crate::flowx_license::status_json())\n}\n\n"
+     "pub fn main_flowx_activate(key: String) -> String {\n"
+     "    match hbb_common::tokio::runtime::Runtime::new() {\n"
+     "        Ok(rt) => rt.block_on(crate::flowx_license::activate(key)),\n"
+     "        Err(e) => e.to_string(),\n    }\n}\n\n"
+     "pub fn main_is_using_public_server() -> bool {\n"),
     # Rede: cada lado usa o endereço do relay FlowX que ele alcança (branding/rust-src/flowx_net.rs)
     ("src/lib.rs", "pub mod flowx_tech;\n", "pub mod flowx_tech;\npub mod flowx_net;\n"),
     ("src/client.rs",
@@ -236,6 +271,17 @@ UI_EDITS = [
      "    if (uiType != '') {\n      peerCardUiType.value = int.parse(uiType) == 0",
      "    if (uiType == '' && isDesktop) {\n      peerCardUiType.value = PeerUiType.list;\n"
      "    } else if (uiType != '') {\n      peerCardUiType.value = int.parse(uiType) == 0"),
+    # Sem licença válida do Hub: só a tela de ativação (flowx_activation.dart)
+    ("flutter/lib/desktop/pages/desktop_home_page.dart",
+     "    return buildRemoteBlock(\n        block: _block, mask: true, use: canBeBlocked, child: child);",
+     "    return FlowXLicenseGate(\n        child: buildRemoteBlock(\n            block: _block, mask: true, use: canBeBlocked, child: child));"),
+    ("flutter/lib/desktop/pages/desktop_home_page.dart",
+     "import 'package:flutter_hbb/flowx/flowx_home.dart';\n",
+     "import 'package:flutter_hbb/flowx/flowx_home.dart';\nimport 'package:flutter_hbb/flowx/flowx_activation.dart';\n"),
+    ("flutter/lib/mobile/pages/home_page.dart", "          body: _pages.elementAt(_selectedIndex),",
+     "          body: FlowXLicenseGate(child: _pages.elementAt(_selectedIndex)),"),
+    ("flutter/lib/mobile/pages/home_page.dart", "import 'package:flutter/material.dart';\n",
+     "import 'package:flutter/material.dart';\nimport 'package:flutter_hbb/flowx/flowx_activation.dart';\n"),
     # Celular (cliente compartilhando a tela): o mesmo palco, compacto
     ("flutter/lib/mobile/pages/server_page.dart", "import '../../common.dart';\n",
      "import '../../common.dart';\nimport '../../flowx/flowx_home.dart';\n"),
@@ -322,7 +368,8 @@ def set_version():
 def recolor_blues():
     """Azuis fixos do RustDesk (Colors.blue, blueAccent, blue[700]!, blue.shade300) -> dourado FlowX (AA com branco)."""
     import re
-    pat = re.compile(r"Colors\.blue(?:Accent)?(?:\[\d+\]!?|\.shade\d+)?(?![A-Za-z])")
+    pat = re.compile(r"Colors\.(?:blue|lightBlue|indigo)(?:Accent)?(?:\[\d+\]!?|\.shade\d+)?(?![A-Za-z])"
+                     r"|(?:const )?Color\(0[xX]FF(?:2C8CFF|2196F3|2F65BA|0071FF)\)")
     n = 0
     for p in (SRC / "flutter/lib").rglob("*.dart"):
         if "flowx" in p.parts:
@@ -356,6 +403,9 @@ def main():
     print("[ui] flowx/*.dart + fontes")
     rs = (ASSETS / "rust-src" / "flowx_tech.rs").read_text(encoding="utf-8")
     shutil.copyfile(ASSETS / "rust-src" / "flowx_net.rs", SRC / "src/flowx_net.rs")
+    lic = (ASSETS / "rust-src" / "flowx_license.rs").read_text(encoding="utf-8")
+    (SRC / "src/flowx_license.rs").write_text(
+        lic.replace("__LICENSE_PUBLIC_KEY__", str(LICENSE_PUBLIC_KEY)), encoding="utf-8", newline="")
     (SRC / "src/flowx_tech.rs").write_text(
         rs.replace("__TECH_PUBLIC_KEY__", str(TECH_PUBLIC_KEY)), encoding="utf-8", newline="")
     print("[rust] flowx_tech.rs")

@@ -135,10 +135,34 @@ class FlowXUpdateReceiver : BroadcastReceiver() {
                 } else {
                     @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)
                 }
-                confirm?.let { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(it) }
+                confirm ?: return
+                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // Android 10+ bloqueia abrir tela a partir de segundo plano: avisa por notificação (toque = instalar)
+                notifyReady(context, confirm)
+                try { context.startActivity(confirm) } catch (e: Exception) { Log.i("FlowXUpdater", "confirmação via notificação") }
             }
             PackageInstaller.STATUS_SUCCESS -> Log.i("FlowXUpdater", "atualizado")
             else -> Log.w("FlowXUpdater", "instalação falhou ($status): ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}")
         }
+    }
+
+    private fun notifyReady(ctx: Context, confirm: Intent) {
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val channel = "flowx_update"
+        if (Build.VERSION.SDK_INT >= 26) {
+            nm.createNotificationChannel(
+                android.app.NotificationChannel(channel, "Atualizações do FlowXDesk", android.app.NotificationManager.IMPORTANCE_HIGH))
+        }
+        val pi = PendingIntent.getActivity(ctx, 7301, confirm,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val n = androidx.core.app.NotificationCompat.Builder(ctx, channel)
+            .setSmallIcon(R.mipmap.ic_stat_logo)
+            .setContentTitle("Atualização do FlowXDesk pronta")
+            .setContentText("Toque para instalar a nova versão.")
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .build()
+        try { nm.notify(7301, n) } catch (e: SecurityException) { Log.w("FlowXUpdater", "sem permissão de notificação") }
     }
 }

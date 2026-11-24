@@ -26,8 +26,13 @@ fn message(id: &str, challenge: &[u8]) -> Vec<u8> {
     m
 }
 
-/// Lado do PC do cliente: a "senha" recebida é uma assinatura válida do técnico FlowX?
+/// Lado do PC do cliente: a "senha" recebida é de um técnico FlowX?
+/// 1º licença de técnico do Hub (flowx_license); 2º a chave fixa antiga do build técnico.
 pub fn verify_login(my_id: &str, challenge: &[u8], sig: &[u8]) -> bool {
+    if let Some(who) = crate::flowx_license::verify_tech_proof(my_id, challenge, sig) {
+        hbb_common::log::info!("FlowXDesk: técnico FlowX com licença: {}", who);
+        return true;
+    }
     if sig.len() != 64 || my_id.is_empty() || challenge.is_empty() {
         return false;
     }
@@ -42,6 +47,9 @@ pub fn verify_login(my_id: &str, challenge: &[u8], sig: &[u8]) -> bool {
 
 /// Lado do técnico: assinatura para o PC `peer_id`. None no build público (sem FLOWX_TECH_KEY).
 pub fn sign_login(peer_id: &str, challenge: &[u8]) -> Option<Vec<u8>> {
+    if let Some(p) = crate::flowx_license::tech_proof(peer_id, challenge) {
+        return Some(p); // licença de técnico do Hub tem prioridade
+    }
     let key = STANDARD.decode(option_env!("FLOWX_TECH_KEY")?.trim()).ok()?;
     if key.len() != 64 || peer_id.is_empty() || challenge.is_empty() {
         return None;
