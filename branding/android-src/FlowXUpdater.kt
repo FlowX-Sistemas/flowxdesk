@@ -32,12 +32,20 @@ object FlowXUpdater {
         if (now - prefs.getLong("last", 0) < INTERVAL_MS) return
         Thread {
             try {
-                if (MainService.isStart) return@Thread  // não atualiza no meio de um acesso remoto
                 prefs.edit().putLong("last", now).apply()
                 check(app)
             } catch (e: Exception) {
                 Log.w(TAG, "checagem de atualização falhou", e)
             }
+        }.start()
+    }
+
+    /** Botão "Atualizar agora": checa já e devolve "ok" (instalação iniciada), "atual" ou "erro". */
+    fun checkNow(ctx: Context, done: (String) -> Unit) {
+        val app = ctx.applicationContext
+        Thread {
+            val res = try { check(app) } catch (e: Exception) { Log.w(TAG, "atualização manual falhou", e); "erro" }
+            android.os.Handler(android.os.Looper.getMainLooper()).post { done(res) }
         }.start()
     }
 
@@ -56,26 +64,26 @@ object FlowXUpdater {
         return c
     }
 
-    private fun check(ctx: Context) {
+    private fun check(ctx: Context): String {
         val meta = JSONObject(get(META_URL).inputStream.bufferedReader().use { it.readText() })
-        if (meta.optString("app") != "flowxdesk") return
+        if (meta.optString("app") != "flowxdesk") return "erro"
         val latest = meta.getString("version")
         @Suppress("DEPRECATION")
-        val current = ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: return
-        if (versionNumber(latest) <= versionNumber(current)) return
+        val current = ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: return "erro"
+        if (versionNumber(latest) <= versionNumber(current)) return "atual"
         val arts = meta.getJSONArray("artifacts")
         var art: JSONObject? = null
         for (i in 0 until arts.length()) {
             val a = arts.getJSONObject(i)
             if (a.optString("platform") == "android" && a.optString("arch") == "aarch64" && a.optString("format") == "apk") art = a
         }
-        art ?: return
+        art ?: return "erro"
         val url = art.getString("url")
         val size = art.getLong("size")
         val sha = art.getString("sha256").lowercase()
         if (!url.startsWith(PREFIX + meta.getString("release_id") + "/") || size <= 0 || size > MAX_APK) {
             Log.w(TAG, "manifesto recusado: $url")
-            return
+            return "erro"
         }
         val file = File(ctx.cacheDir, "flowxdesk-update.apk")
         val md = MessageDigest.getInstance("SHA-256")
@@ -97,10 +105,11 @@ object FlowXUpdater {
         if (file.length() != size || got != sha) {
             file.delete()
             Log.w(TAG, "sha256/tamanho não confere; atualização descartada")
-            return
+            return "erro"
         }
         Log.i(TAG, "instalando $latest (atual $current)")
         install(ctx, file)
+        return "ok"
     }
 
     private fun install(ctx: Context, file: File) {
@@ -108,8 +117,11 @@ object FlowXUpdater {
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         params.setAppPackageName(ctx.packageName)
         if (Build.VERSION.SDK_INT >= 31) {
-            // Android 12+: sem pergunta quando o próprio FlowXDesk é o instalador de registro
-            params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+            // Android 12+: sem pergunta quando o próprio FlowXDesk é o instalador de registro;
+            // com a tela compartilhada, sempre pergunta (instalar reinicia o app e derruba o acesso)
+            params.setRequireUserAction(if (MainService.isStart)
+                PackageInstaller.SessionParams.USER_ACTION_REQUIRED
+                else PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
         }
         val id = pi.createSession(params)
         pi.openSession(id).use { s ->

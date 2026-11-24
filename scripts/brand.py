@@ -135,6 +135,13 @@ UPDATE_EDITS = [
     ("flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainActivity.kt",
      "    override fun onResume() {\n        super.onResume()\n",
      "    override fun onResume() {\n        super.onResume()\n        FlowXUpdater.maybeCheck(this)\n"),
+    # botão "Atualizar agora" (flowx_update.dart) chama o atualizador pelo canal do app
+    ("flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainActivity.kt",
+     '                "init_service" -> {\n',
+     '                "flowx_update_now" -> {\n'
+     '                    FlowXUpdater.checkNow(this) { result.success(it) }\n'
+     '                }\n'
+     '                "init_service" -> {\n'),
     ("flutter/android/app/src/main/AndroidManifest.xml",
      '    <uses-permission android:name="android.permission.INTERNET" />\n',
      '    <uses-permission android:name="android.permission.INTERNET" />\n'
@@ -285,6 +292,10 @@ UI_EDITS = [
     # Celular (cliente compartilhando a tela): o mesmo palco, compacto
     ("flutter/lib/mobile/pages/server_page.dart", "import '../../common.dart';\n",
      "import '../../common.dart';\nimport '../../flowx/flowx_home.dart';\n"),
+    ("flutter/lib/mobile/pages/server_page.dart", "import '../../flowx/flowx_home.dart';\n",
+     "import '../../flowx/flowx_home.dart';\nimport '../../flowx/flowx_update.dart';\n"),
+    ("flutter/lib/mobile/pages/server_page.dart", "                        buildPresetPasswordWarningMobile(),\n",
+     "                        buildPresetPasswordWarningMobile(),\n                        const FlowXUpdateCard(),\n"),
     ("flutter/lib/mobile/pages/server_page.dart", "                            ? ServerInfo()",
      "                            ? const FlowXStage(compact: true)"),
     # Tela inicial desktop: o palco com o número no lugar do painel estreito; conexão vira painel lateral
