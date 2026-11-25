@@ -21,7 +21,8 @@ use hbb_common::{
 const LICENSE_CONTEXT: &[u8] = b"FlowXDesk license v1\n";
 const PROOF_CONTEXT: &[u8] = b"FlowXDesk tech proof v1\n";
 const PROOF_MAGIC: &[u8] = b"FXT1";
-const LICENSE_PUBLIC_KEY: [u8; 32] = __LICENSE_PUBLIC_KEY__;
+// Lista de públicas do Hub aceitas: na rotação publica-se o app com [atual, próxima], vira o segredo, depois tira a velha.
+const LICENSE_PUBLIC_KEYS: &[[u8; 32]] = &__LICENSE_PUBLIC_KEYS__;
 
 const OPT_KEY: &str = "flowx-license-key";
 const OPT_CERT: &str = "flowx-license-cert";
@@ -119,7 +120,7 @@ pub fn parse_cert_with(raw: &str, hub_pk: &[u8; 32]) -> Option<Cert> {
 }
 
 fn parse_cert(raw: &str) -> Option<Cert> {
-    parse_cert_with(raw, &LICENSE_PUBLIC_KEY)
+    LICENSE_PUBLIC_KEYS.iter().find_map(|k| parse_cert_with(raw, k))
 }
 
 fn device_secret() -> Option<SecretKey> {
@@ -301,7 +302,8 @@ pub fn verify_tech_proof_with(my_id: &str, challenge: &[u8], proof: &[u8], hub_p
 }
 
 pub fn verify_tech_proof(my_id: &str, challenge: &[u8], proof: &[u8]) -> Option<String> {
-    verify_tech_proof_with(my_id, challenge, proof, &LICENSE_PUBLIC_KEY, now())
+    let at = now();
+    LICENSE_PUBLIC_KEYS.iter().find_map(|k| verify_tech_proof_with(my_id, challenge, proof, k, at))
 }
 
 #[cfg(test)]
@@ -342,5 +344,12 @@ mod tests {
         p2.extend_from_slice(cli.as_bytes());
         p2.extend_from_slice(&sig);
         assert!(verify_tech_proof_with("123456789", b"ch", &p2, &hub_pk.0, 1000).is_none()); // não é técnico
+    }
+
+    #[test]
+    fn embedded_keys_are_valid_and_old_key_retired() {
+        let old = STANDARD.decode("xpfvRJInY4pHvpOXqUiTD6gZX64WcFanpHYLsa9dvo0=").unwrap();
+        assert!(!LICENSE_PUBLIC_KEYS.is_empty());
+        assert!(LICENSE_PUBLIC_KEYS.iter().all(|k| k.as_slice() != old.as_slice())); // chave antiga aposentada (24/11)
     }
 }

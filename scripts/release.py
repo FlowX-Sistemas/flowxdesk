@@ -71,21 +71,26 @@ def main():
         files.append(out / apk_name)
         arts.append(artifact(out / apk_name, "android", "aarch64", "apk", v, apk_name))
 
+    key = serialization.load_pem_private_key(a.key.read_bytes(), password=None)
+    pub = list(key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw))
+    key_id = next((k for k, v in brand.UPDATE_KEYS.items() if v == pub), None)
+    if not key_id:
+        sys.exit("ERRO: essa chave privada não corresponde a nenhuma chave de atualização embutida no app")
+    print(f"assinando com {key_id}")
     meta = {
         "schema_version": 1, "app": "flowxdesk", "package_id": "flowxdesk",
         "version": v, "release_id": v,
         "published_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "signature_key_id": brand.UPDATE_KEY_ID, "artifacts": arts,
+        "signature_key_id": key_id, "artifacts": arts,
     }
     meta_bytes = json.dumps(meta, indent=2).encode()
-    key = serialization.load_pem_private_key(a.key.read_bytes(), password=None)
     sig = key.sign(CONTEXT + meta_bytes)
     # confere com a chave pública que está embutida no app; se não bater, o app recusaria a atualização
-    Ed25519PublicKey.from_public_bytes(bytes(brand.UPDATE_PUBLIC_KEY)).verify(sig, CONTEXT + meta_bytes)
+    Ed25519PublicKey.from_public_bytes(bytes(brand.UPDATE_KEYS[key_id])).verify(sig, CONTEXT + meta_bytes)
 
     (out / "flowxdesk-update.json").write_bytes(meta_bytes)
     (out / "flowxdesk-update.json.sig").write_text(json.dumps({
-        "schema_version": 1, "algorithm": "ed25519", "key_id": brand.UPDATE_KEY_ID,
+        "schema_version": 1, "algorithm": "ed25519", "key_id": key_id,
         "signature": base64.b64encode(sig).decode(),
     }, indent=2))
     (out / "flowxdesk-version.json").write_text(json.dumps(

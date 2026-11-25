@@ -4,6 +4,7 @@ Idempotente: um trecho já trocado é pulado. Se o RustDesk mudar e um trecho
 original sumir, o script PARA com erro: confira o arquivo e ajuste a lista.
 Uso: python -I scripts/brand.py [caminho_src]
 """
+import base64
 import pathlib
 import shutil
 import sys
@@ -98,13 +99,24 @@ UPDATE_REPO = ("FlowX-Sistemas", "flowxdesk")
 UPDATE_KEY_ID = "flowx-2026-ed25519"
 UPDATE_PUBLIC_KEY = [57, 127, 57, 166, 94, 128, 166, 167, 245, 178, 40, 61, 76, 243, 148, 187,
                      168, 240, 145, 128, 123, 1, 44, 240, 250, 2, 69, 115, 103, 214, 234, 198]
+# Rotação (25/11): o app passa a confiar também na chave nova (privada: flowxdesk-update-ed25519-2026b.pem).
+# Publique UMA versão ainda assinada com a antiga (os apps velhos só conhecem ela); depois assine com a nova
+# (release.py --key ...-2026b.pem) e, quando todos tiverem passado por essa versão, tire a antiga daqui.
+UPDATE_KEY_ID_NEXT = "flowx-2026b-ed25519"
+UPDATE_PUBLIC_KEY_NEXT = [119, 215, 73, 14, 22, 175, 253, 71, 110, 199, 94, 42, 199, 158, 39, 90,
+                          64, 105, 167, 190, 30, 9, 140, 243, 58, 78, 143, 194, 66, 23, 68, 170]
+UPDATE_KEYS = {UPDATE_KEY_ID: UPDATE_PUBLIC_KEY, UPDATE_KEY_ID_NEXT: UPDATE_PUBLIC_KEY_NEXT}
 _O, _R = UPDATE_REPO
-# Chave PÚBLICA que assina as licenças no Hub (a privada fica só no Hub: segredo FLOWXDESK_LICENSE_SIGNING_KEY)
-LICENSE_PUBLIC_KEY = [198, 151, 239, 68, 146, 39, 99, 138, 71, 190, 147, 151, 169, 72, 147, 15,
-                      168, 25, 95, 174, 22, 112, 86, 167, 164, 118, 11, 177, 175, 93, 190, 141]
-# Chave PÚBLICA do técnico FlowX (a privada fica em D:FlowX-Opssegredos e só entra no build técnico, nunca no público)
-TECH_PUBLIC_KEY = [65, 246, 247, 251, 53, 42, 93, 241, 50, 63, 45, 34, 138, 16, 101, 47,
-                   168, 36, 130, 9, 229, 252, 216, 136, 79, 186, 190, 87, 114, 150, 49, 129]
+# Chaves PÚBLICAS do Hub que assinam licenças (a privada fica só no cofre da INFRA: FLOWXDESK_LICENSE_SIGNING_KEY).
+# Rotação: acrescente a próxima, publique o app, vire o segredo no servidor e depois remova a antiga.
+# 25/11: a antiga (xpfvRJIn...) foi aposentada por ter passado pelo espelho do Google Drive.
+LICENSE_PUBLIC_KEYS_B64 = ["dR1MgCcFkY3e3Vls6GmC0+jTB7ujorM0KvRINHD9bzA="]
+LICENSE_PUBLIC_KEYS = [list(base64.b64decode(k)) for k in LICENSE_PUBLIC_KEYS_B64]
+assert all(len(k) == 32 for k in LICENSE_PUBLIC_KEYS)
+# Chave PÚBLICA do técnico FlowX (a privada fica em D:\FlowX-Ops\segredos e só entra no build técnico, nunca no público)
+# 25/11: trocada (a anterior, 41f6f7fb..., passou pelo espelho do Google Drive); privada: flowxdesk-tecnico-2026b.key
+TECH_PUBLIC_KEY = [235, 57, 160, 61, 175, 166, 95, 212, 151, 179, 117, 30, 2, 66, 11, 133,
+                   69, 155, 225, 196, 39, 82, 98, 115, 235, 17, 126, 207, 14, 95, 142, 0]
 UPDATE_EDITS = [
     # Versão mais nova = asset flowxdesk-version.json da release "latest" ({"url": ".../releases/tag/X.Y.Z"})
     ("libs/hbb_common/src/lib.rs", 'const URL: &str = "https://api.rustdesk.com/version/latest";',
@@ -123,6 +135,9 @@ UPDATE_EDITS = [
      "public_key: [\n        52, 214, 32, 65, 191, 134, 137, 75, 157, 74, 67, 221, 150, 161, 118, 215, 218, 35, 236,\n"
      "        156, 127, 120, 133, 156, 197, 141, 37, 22, 47, 106, 181, 177,\n    ],",
      f"public_key: {UPDATE_PUBLIC_KEY},"),
+    ("src/update_metadata.rs", f"public_key: {UPDATE_PUBLIC_KEY},\n}}];",
+     f"public_key: {UPDATE_PUBLIC_KEY},\n}}, TrustedUpdateKey {{\n    key_id: \"{UPDATE_KEY_ID_NEXT}\",\n"
+     f"    algorithm: SIGNATURE_ALGORITHM,\n    public_key: {UPDATE_PUBLIC_KEY_NEXT},\n}}];"),
     ("src/update_metadata.rs", 'const UPDATE_APP: &str = "rustdesk";', 'const UPDATE_APP: &str = "flowxdesk";'),
     ("src/update_metadata.rs", 'PUBLIC_UPDATE_PACKAGE_ID: &str = "rustdesk";',
      'PUBLIC_UPDATE_PACKAGE_ID: &str = "flowxdesk";'),
@@ -418,7 +433,7 @@ def main():
     shutil.copyfile(ASSETS / "rust-src" / "flowx_net.rs", SRC / "src/flowx_net.rs")
     lic = (ASSETS / "rust-src" / "flowx_license.rs").read_text(encoding="utf-8")
     (SRC / "src/flowx_license.rs").write_text(
-        lic.replace("__LICENSE_PUBLIC_KEY__", str(LICENSE_PUBLIC_KEY)), encoding="utf-8", newline="")
+        lic.replace("__LICENSE_PUBLIC_KEYS__", str(LICENSE_PUBLIC_KEYS)), encoding="utf-8", newline="")
     (SRC / "src/flowx_tech.rs").write_text(
         rs.replace("__TECH_PUBLIC_KEY__", str(TECH_PUBLIC_KEY)), encoding="utf-8", newline="")
     print("[rust] flowx_tech.rs")
