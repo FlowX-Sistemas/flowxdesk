@@ -2,7 +2,7 @@
 # Pré-requisito: scripts\setup-toolchain.ps1 (uma vez) e o arquivo flowxdesk.local.ps1 (servidor/key, fora do git).
 # -Tecnico: build INTERNO com a chave privada do técnico (entra direto nos clientes). NUNCA publicar.
 param([string]$Tools = 'D:\FlowXDesk-toolchain', [int]$Jobs = 12, [switch]$Tecnico,
-      [string]$TechKeyFile = 'D:\Sistemas\_segredos\flowxdesk-tecnico.key')
+      [string]$TechKeyFile = 'D:\FlowX-Ops\segredos\flowxdesk-tecnico.key')
 $ErrorActionPreference = 'Continue'
 function Assert-Ok($what) { if ($LASTEXITCODE) { throw "falhou: $what (exit $LASTEXITCODE)" } }
 $Root = (Resolve-Path "$PSScriptRoot\..").Path

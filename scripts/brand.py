@@ -102,7 +102,7 @@ _O, _R = UPDATE_REPO
 # Chave PÚBLICA que assina as licenças no Hub (a privada fica só no Hub: segredo FLOWXDESK_LICENSE_SIGNING_KEY)
 LICENSE_PUBLIC_KEY = [198, 151, 239, 68, 146, 39, 99, 138, 71, 190, 147, 151, 169, 72, 147, 15,
                       168, 25, 95, 174, 22, 112, 86, 167, 164, 118, 11, 177, 175, 93, 190, 141]
-# Chave PÚBLICA do técnico FlowX (a privada fica em _segredos e só entra no build técnico, nunca no público)
+# Chave PÚBLICA do técnico FlowX (a privada fica em D:FlowX-Opssegredos e só entra no build técnico, nunca no público)
 TECH_PUBLIC_KEY = [65, 246, 247, 251, 53, 42, 93, 241, 50, 63, 45, 34, 138, 16, 101, 47,
                    168, 36, 130, 9, 229, 252, 216, 136, 79, 186, 190, 87, 114, 150, 49, 129]
 UPDATE_EDITS = [

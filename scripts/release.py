@@ -7,7 +7,7 @@ Gera e sobe junto com os instaladores:
 
 Uso (python SEM -I, precisa do pacote 'cryptography'):
   python scripts/release.py 1.5.3 --exe dist/FlowXDesk-1.5.3-x64.exe --apk dist/android/FlowXDesk-1.5.3-arm64.apk
-  --key  chave privada PEM (padrão: D:\\Sistemas\\_segredos\\flowxdesk-update-ed25519.pem)
+  --key  chave privada PEM (padrão: D:\\FlowX-Ops\\segredos\\flowxdesk-update-ed25519.pem)
   --dry-run  só gera e confere os arquivos em build/release-X.Y.Z, sem publicar
 """
 import argparse
@@ -46,7 +46,7 @@ def main():
     ap.add_argument("version")
     ap.add_argument("--exe", type=pathlib.Path, required=True)
     ap.add_argument("--apk", type=pathlib.Path)
-    ap.add_argument("--key", type=pathlib.Path, default=pathlib.Path(r"D:\Sistemas\_segredos\flowxdesk-update-ed25519.pem"))
+    ap.add_argument("--key", type=pathlib.Path, default=pathlib.Path(r"D:\FlowX-Ops\segredos\flowxdesk-update-ed25519.pem"))
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     v = a.version
