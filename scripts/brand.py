@@ -139,6 +139,9 @@ UPDATE_EDITS = [
      f"public_key: {UPDATE_PUBLIC_KEY},\n}}, TrustedUpdateKey {{\n    key_id: \"{UPDATE_KEY_ID_NEXT}\",\n"
      f"    algorithm: SIGNATURE_ALGORITHM,\n    public_key: {UPDATE_PUBLIC_KEY_NEXT},\n}}];"),
     ("src/update_metadata.rs", 'const UPDATE_APP: &str = "rustdesk";', 'const UPDATE_APP: &str = "flowxdesk";'),
+    # Windows: procura versão nova de hora em hora (o RustDesk faz 1×/dia), igual ao celular
+    ("src/updater.rs", "pub const DUR_ONE_DAY: Duration = Duration::from_secs(60 * 60 * 24);",
+     "pub const DUR_ONE_DAY: Duration = Duration::from_secs(60 * 60); // FlowXDesk: 1 h"),
     ("src/update_metadata.rs", 'PUBLIC_UPDATE_PACKAGE_ID: &str = "rustdesk";',
      'PUBLIC_UPDATE_PACKAGE_ID: &str = "flowxdesk";'),
     # Android: atualizador próprio (branding/android-src/FlowXUpdater.kt), checado ao abrir o app
