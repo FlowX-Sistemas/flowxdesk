@@ -1,10 +1,13 @@
-// FlowXDesk (Android): cartão "Atualizar agora" quando há versão nova nas Releases da FlowX.
-// O download/instalação é feito pelo FlowXUpdater.kt (confere sha256 e assinatura do APK).
+// FlowXDesk: cartão "Atualizar agora" quando há versão nova nas Releases da FlowX.
+// Android: FlowXUpdater.kt baixa e instala (confere sha256 e assinatura do APK).
+// Windows: o atualizador do próprio app (metadados assinados ed25519), mesmo caminho da atualização automática.
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
+import 'package:flutter_hbb/desktop/widgets/update_progress.dart';
+import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -31,14 +34,14 @@ class FlowXUpdateCard extends StatefulWidget {
 
 class _FlowXUpdateCardState extends State<FlowXUpdateCard> {
   static String? _latest; // guardado entre reconstruções da tela
-  static String? _apkUrl;
+  static String? _fileUrl;
   String _status = '';
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    if (Platform.isAndroid && _latest == null) _fetch();
+    if ((Platform.isAndroid || Platform.isWindows) && _latest == null) _fetch();
   }
 
   Future<void> _fetch() async {
@@ -50,13 +53,21 @@ class _FlowXUpdateCardState extends State<FlowXUpdateCard> {
       final latest = m['version'] as String;
       if (flowxVersionNumber(latest) <= flowxVersionNumber(version)) return;
       for (final a in (m['artifacts'] as List)) {
-        if (a['platform'] == 'android' && a['format'] == 'apk') _apkUrl = a['url'] as String;
+        if (a['platform'] == (Platform.isAndroid ? 'android' : 'windows')) _fileUrl = a['url'] as String;
       }
       if (mounted) setState(() => _latest = latest);
     } catch (_) {}
   }
 
   Future<void> _update() async {
+    if (Platform.isWindows) {
+      if (bind.mainIsInstalled()) {
+        handleUpdate('https://github.com/FlowX-Sistemas/flowxdesk/releases/tag/$_latest');
+      } else if (_fileUrl != null) {
+        launchUrl(Uri.parse(_fileUrl!));
+      }
+      return;
+    }
     setState(() {
       _busy = true;
       _status = 'Baixando a versão $_latest…';
@@ -73,7 +84,7 @@ class _FlowXUpdateCardState extends State<FlowXUpdateCard> {
     } else {
       // plano B: baixa o APK pelo navegador
       setState(() => _status = 'Não deu para instalar daqui; abrindo o download…');
-      if (_apkUrl != null) launchUrl(Uri.parse(_apkUrl!), mode: LaunchMode.externalApplication);
+      if (_fileUrl != null) launchUrl(Uri.parse(_fileUrl!), mode: LaunchMode.externalApplication);
     }
     setState(() => _busy = false);
   }

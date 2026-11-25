@@ -286,16 +286,12 @@ UI_EDITS = [
      "import 'package:flutter_hbb/consts.dart';\n",
      "import 'package:flutter_hbb/consts.dart';\nimport 'package:flutter_hbb/flowx/flowx_activation.dart';\n"),
     ("flutter/lib/mobile/pages/home_page.dart", "          body: _pages.elementAt(_selectedIndex),",
-     "          body: FlowXLicenseGate(child: _pages.elementAt(_selectedIndex)),"),
+     "          body: FlowXLicenseGate(child: Column(children: [const FlowXUpdateCard(), Expanded(child: _pages.elementAt(_selectedIndex))])),"),
     ("flutter/lib/mobile/pages/home_page.dart", "import 'package:flutter/material.dart';\n",
      "import 'package:flutter/material.dart';\nimport 'package:flutter_hbb/flowx/flowx_activation.dart';\n"),
     # Celular (cliente compartilhando a tela): o mesmo palco, compacto
     ("flutter/lib/mobile/pages/server_page.dart", "import '../../common.dart';\n",
      "import '../../common.dart';\nimport '../../flowx/flowx_home.dart';\n"),
-    ("flutter/lib/mobile/pages/server_page.dart", "import '../../flowx/flowx_home.dart';\n",
-     "import '../../flowx/flowx_home.dart';\nimport '../../flowx/flowx_update.dart';\n"),
-    ("flutter/lib/mobile/pages/server_page.dart", "                        buildPresetPasswordWarningMobile(),\n",
-     "                        buildPresetPasswordWarningMobile(),\n                        const FlowXUpdateCard(),\n"),
     ("flutter/lib/mobile/pages/server_page.dart", "                            ? ServerInfo()",
      "                            ? const FlowXStage(compact: true)"),
     # Tela inicial desktop: o palco com o número no lugar do painel estreito; conexão vira painel lateral
@@ -307,10 +303,16 @@ UI_EDITS = [
      "        if (!isIncomingOnly) Expanded(child: buildRightPane(context)),\n",
      "        if (isIncomingOnly)\n          buildLeftPane(context)\n        else\n"
      "          Expanded(\n              child: FlowXStage(extras: [\n"
+     "            const FlowXUpdateCard(),\n"
      "            if (!bind.isOutgoingOnly()) buildPresetPasswordWarning(),\n"
      "            Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),\n          ])),\n"
      "        if (!isIncomingOnly) const VerticalDivider(width: 1),\n"
      "        if (!isIncomingOnly) SizedBox(width: MediaQuery.of(context).size.width < 1100 ? 384 : 440, child: buildRightPane(context)),\n"),
+    # Aviso "Atualizar agora": no celular acima de todas as abas; no PC no topo do palco
+    ("flutter/lib/mobile/pages/home_page.dart", "import 'package:flutter_hbb/flowx/flowx_activation.dart';\n",
+     "import 'package:flutter_hbb/flowx/flowx_activation.dart';\nimport 'package:flutter_hbb/flowx/flowx_update.dart';\n"),
+    ("flutter/lib/desktop/pages/desktop_home_page.dart", "import 'package:flutter_hbb/flowx/flowx_home.dart';\n",
+     "import 'package:flutter_hbb/flowx/flowx_home.dart';\nimport 'package:flutter_hbb/flowx/flowx_update.dart';\n"),
 ]
 
 # Cores: troca o azul RustDesk pelo acento FlowX em common.dart
