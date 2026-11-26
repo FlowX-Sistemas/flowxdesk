@@ -44,6 +44,17 @@ class FlowXLicenseCard extends StatefulWidget {
 class _FlowXLicenseCardState extends State<FlowXLicenseCard> {
   late bool _show = _needed();
 
+  @override
+  void initState() {
+    super.initState();
+    // técnico entra pela chave do técnico: não precisa de licença nem do aviso
+    if (_show) {
+      bind.mainGetCommon(key: 'flowx-tech-build').then((v) {
+        if (v == 'true' && mounted) setState(() => _show = false);
+      });
+    }
+  }
+
   static bool _needed() {
     final s = flowxLicenseStatus();
     return s['enabled'] == true && s['licensed'] != true;
@@ -55,13 +66,15 @@ class _FlowXLicenseCardState extends State<FlowXLicenseCard> {
       builder: (ctx) => Dialog(
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: SizedBox(
-          width: 520,
-          height: 520,
-          child: FlowXActivation(onActivated: () {
-            Navigator.of(ctx).pop();
-            setState(() => _show = _needed());
-          }),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: FlowXActivation(
+            onCancel: () => Navigator.of(ctx).pop(),
+            onActivated: () {
+              Navigator.of(ctx).pop();
+              setState(() => _show = _needed());
+            },
+          ),
         ),
       ),
     );
@@ -94,8 +107,10 @@ class _FlowXLicenseCardState extends State<FlowXLicenseCard> {
 }
 
 class FlowXActivation extends StatefulWidget {
-  const FlowXActivation({super.key, required this.onActivated});
+  const FlowXActivation({super.key, required this.onActivated, this.onCancel});
   final VoidCallback onActivated;
+  /// Na janela do período de carência: mostra "Agora não" e encolhe ao conteúdo.
+  final VoidCallback? onCancel;
 
   @override
   State<FlowXActivation> createState() => _FlowXActivationState();
@@ -130,14 +145,8 @@ class _FlowXActivationState extends State<FlowXActivation> {
   @override
   Widget build(BuildContext context) {
     final dark = FlowX.isDark(context);
-    return Material(
-      color: dark ? FlowX.ink : FlowX.ivory,
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    final inDialog = widget.onCancel != null;
+    final content = Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Image.asset('assets/icon.png', width: 64, height: 64),
               const SizedBox(height: 24),
               Text('ATIVAR O FLOWXDESK',
@@ -175,12 +184,24 @@ class _FlowXActivationState extends State<FlowXActivation> {
                 ),
               ),
               const SizedBox(height: 18),
-              Text('Não tem a chave? Fale com o suporte da FlowX.',
-                  style: TextStyle(fontFamily: FlowX.sans, color: FlowX.muted(context))),
-            ]),
-          ),
-        ),
-      ),
+              Row(children: [
+                Expanded(
+                  child: Text('Não tem a chave? Fale com o suporte da FlowX.',
+                      style: TextStyle(fontFamily: FlowX.sans, color: FlowX.muted(context))),
+                ),
+                if (inDialog) TextButton(onPressed: widget.onCancel, child: const Text('Agora não')),
+              ]),
+            ]);
+    return Material(
+      color: dark ? FlowX.ink : FlowX.ivory,
+      child: inDialog
+          ? Padding(padding: const EdgeInsets.all(28), child: content)
+          : Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(28),
+                child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460), child: content),
+              ),
+            ),
     );
   }
 }

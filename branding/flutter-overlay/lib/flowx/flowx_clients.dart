@@ -107,6 +107,7 @@ class _FlowXClientsState extends State<FlowXClients> {
       ..sort((a, b) => (_online.contains('${b['device_id']}') ? 1 : 0) - (_online.contains('${a['device_id']}') ? 1 : 0));
     final onlineCount = _devices.where((d) => _online.contains('${d['device_id']}')).length;
     return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: dark ? FlowX.surface : FlowX.paper,

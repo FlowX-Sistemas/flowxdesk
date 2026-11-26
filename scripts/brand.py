@@ -246,6 +246,13 @@ UI_EDITS = [
      '("Control Remote Desktop", "Chamar um cliente"),'),
     ("src/lang/pt_BR.rs", '("Enter Remote ID", "Informe o ID Remoto"),', '("Enter Remote ID", "Número do cliente"),'),
     ("src/lang/pt_BR.rs", '("Recent sessions", "Sessões recentes"),', '("Recent sessions", "Chamados recentes"),'),
+    # Listas vazias no tom FlowX (o RustDesk fala de "parceiros" com carinha triste)
+    ("src/lang/pt_BR.rs", '("empty_recent_tip", "Ops, não há sessões recentes!\\nHora de planejar uma nova."),',
+     '("empty_recent_tip", "Nenhum atendimento ainda.\\nOs PCs que você acessar aparecem aqui."),'),
+    ("src/lang/pt_BR.rs", '("empty_favorite_tip", "Ainda não há parceiros favoritos?\\nVamos encontrar alguém para se conectar e adicioná-lo aos seus favoritos!"),',
+     '("empty_favorite_tip", "Nenhum favorito.\\nMarque com a estrela os PCs que você acessa sempre."),'),
+    ("src/lang/pt_BR.rs", '("empty_lan_tip", "Ah não, parece que ainda não descobrimos nenhum parceiro."),',
+     '("empty_lan_tip", "Nenhum PC com FlowXDesk encontrado nesta rede."),'),
     ("src/lang/pt_BR.rs", '("One-time Password", "Senha de uso único"),', '("One-time Password", "Senha desta vez"),'),
     # Painel lateral: a situação já aparece no palco
     ("flutter/lib/desktop/pages/connection_page.dart",
