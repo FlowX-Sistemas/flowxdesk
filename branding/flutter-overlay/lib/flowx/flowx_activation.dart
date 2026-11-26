@@ -33,6 +33,66 @@ class _FlowXLicenseGateState extends State<FlowXLicenseGate> {
   }
 }
 
+/// Período de carência: licenciamento ligado mas sem bloqueio. Lembra de ativar até o PC ter licença.
+class FlowXLicenseCard extends StatefulWidget {
+  const FlowXLicenseCard({super.key});
+
+  @override
+  State<FlowXLicenseCard> createState() => _FlowXLicenseCardState();
+}
+
+class _FlowXLicenseCardState extends State<FlowXLicenseCard> {
+  late bool _show = _needed();
+
+  static bool _needed() {
+    final s = flowxLicenseStatus();
+    return s['enabled'] == true && s['licensed'] != true;
+  }
+
+  void _open() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SizedBox(
+          width: 520,
+          height: 520,
+          child: FlowXActivation(onActivated: () {
+            Navigator.of(ctx).pop();
+            setState(() => _show = _needed());
+          }),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_show) return const SizedBox.shrink();
+    final dark = FlowX.isDark(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: dark ? FlowX.surface : FlowX.paper,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: FlowX.champagneStrong.withOpacity(0.6)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('ATIVE SUA LICENÇA',
+            style: TextStyle(
+                fontFamily: FlowX.sans, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1.6, color: FlowX.accentText(context))),
+        const SizedBox(height: 6),
+        Text('Digite a chave enviada pela FlowX Sistemas. Em breve o FlowXDesk só funcionará com licença ativa.',
+            style: TextStyle(fontFamily: FlowX.sans, fontSize: 16, height: 1.4, color: dark ? FlowX.textOnDark : FlowX.ink)),
+        const SizedBox(height: 12),
+        SizedBox(width: double.infinity, height: 48, child: ElevatedButton(onPressed: _open, child: const Text('Ativar agora'))),
+      ]),
+    );
+  }
+}
+
 class FlowXActivation extends StatefulWidget {
   const FlowXActivation({super.key, required this.onActivated});
   final VoidCallback onActivated;

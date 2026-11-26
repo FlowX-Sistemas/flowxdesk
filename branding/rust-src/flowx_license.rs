@@ -33,8 +33,15 @@ pub fn license_url() -> &'static str {
     option_env!("FLOWX_LICENSE_URL").unwrap_or("")
 }
 
-pub fn enforced() -> bool {
+/// Licenciamento ligado: ativa, renova, registra o aparelho no Hub e mostra o aviso para ativar.
+pub fn enabled() -> bool {
     !license_url().is_empty()
+}
+
+/// Bloqueio: sem licença o app só mostra a ativação e o serviço recusa conexões. Fica desligado no
+/// período de carência; liga num build com FLOWX_LICENSE_BLOCK=1 quando todos os clientes tiverem chave.
+pub fn enforced() -> bool {
+    enabled() && option_env!("FLOWX_LICENSE_BLOCK") == Some("1")
 }
 
 fn now() -> i64 {
@@ -159,13 +166,15 @@ pub fn device_licensed() -> bool {
     !enforced() || my_cert().is_some()
 }
 
-/// JSON para a tela: {"enforced","ok","type","org","tech","exp","key"}
+/// JSON para a tela: {"enabled","enforced","ok","licensed","type","org","tech","exp","key"}
 pub fn status_json() -> String {
     let c = my_cert();
     let key = get_opt(OPT_KEY);
     json!({
+        "enabled": enabled(),
         "enforced": enforced(),
         "ok": !enforced() || c.is_some(),
+        "licensed": c.is_some(),
         "type": c.as_ref().map(|c| c.typ.clone()).unwrap_or_default(),
         "org": c.as_ref().map(|c| c.org.clone()).unwrap_or_default(),
         "tech": c.as_ref().map(|c| c.tech.clone()).unwrap_or_default(),
@@ -186,7 +195,7 @@ fn mask(key: &str) -> String {
 /// Ativa/renova com a chave. Devolve "" se deu certo ou a mensagem de erro para mostrar.
 pub async fn activate(key: String) -> String {
     let key = key.trim().to_uppercase();
-    if !enforced() {
+    if !enabled() {
         return "Licenciamento não configurado neste build".to_owned();
     }
     if key.is_empty() {
@@ -226,13 +235,41 @@ pub async fn activate(key: String) -> String {
         "licenca_vencida" => "Licença vencida. Fale com a FlowX.".to_owned(),
         "limite_de_aparelhos" => "Esta licença já está em uso no número máximo de aparelhos".to_owned(),
         "aparelho_bloqueado" => "Este aparelho foi bloqueado. Fale com a FlowX.".to_owned(),
+        "aparelho_invalido" => "Não foi possível identificar este aparelho. Reinstale o FlowXDesk.".to_owned(),
         _ => "Não foi possível validar a licença agora".to_owned(),
     }
 }
 
+/// Técnico: aparelhos FlowXDesk registrados no Hub. Devolve o JSON do Hub ({"devices":[...]}) ou {"error":...}.
+/// Prova: a mesma assinatura do login de técnico, com "flowx-hub" no lugar do ID e a hora como desafio.
+pub async fn device_list() -> String {
+    if !enabled() {
+        return json!({"error": "desligado"}).to_string();
+    }
+    let ts = now().to_string();
+    let Some(proof) = crate::flowx_tech::sign_login(DEVICES_PEER, ts.as_bytes()) else {
+        return json!({"error": "nao_tecnico"}).to_string();
+    };
+    let body = json!({"ts": ts, "proof": STANDARD.encode(proof)}).to_string();
+    match crate::post_request(devices_url(), body, "").await {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("FlowXDesk: lista de aparelhos sem resposta do Hub: {}", e);
+            json!({"error": "sem_conexao"}).to_string()
+        }
+    }
+}
+
+const DEVICES_PEER: &str = "flowx-hub";
+
+fn devices_url() -> String {
+    let u = license_url();
+    format!("{}/devices", u.strip_suffix("/license").unwrap_or(u))
+}
+
 /// Renovação automática (chamada pelo serviço): técnico 1×/hora, cliente 1×/12 h; renova antes de vencer.
 pub fn start_refresh_loop() {
-    if !enforced() {
+    if !enabled() {
         return;
     }
     std::thread::spawn(|| loop {

@@ -42,7 +42,12 @@ pub fn verify_login(my_id: &str, challenge: &[u8], sig: &[u8]) -> bool {
         return false;
     };
     let _ = sodiumoxide::init();
-    verify_detached(&sig, &message(my_id, challenge), &PublicKey(TECH_PUBLIC_KEY))
+    let ok = verify_detached(&sig, &message(my_id, challenge), &PublicKey(TECH_PUBLIC_KEY));
+    if !ok {
+        // 64 bytes nunca é hash de senha (32): é um técnico com chave que este app não conhece
+        hbb_common::log::warn!("FlowXDesk: assinatura de técnico recusada (chave diferente ou app antigo)");
+    }
+    ok
 }
 
 /// Lado do técnico: assinatura para o PC `peer_id`. None no build público (sem FLOWX_TECH_KEY).
@@ -57,6 +62,7 @@ pub fn sign_login(peer_id: &str, challenge: &[u8]) -> Option<Vec<u8>> {
     let mut k = [0u8; 64];
     k.copy_from_slice(&key);
     let _ = sodiumoxide::init();
+    hbb_common::log::info!("FlowXDesk: login de técnico assinado para {}", peer_id);
     Some(sign_detached(&message(peer_id, challenge), &SecretKey(k)).to_bytes().to_vec())
 }
 
@@ -77,5 +83,17 @@ mod tests {
         assert!(!verify_detached(&sig, &message("123456780", b"abc"), &pk));
         assert!(!verify_detached(&sig, &message("123456789", b"abd"), &pk));
         assert!(!verify_login("123456789", b"abc", &[0u8; 63]));
+    }
+
+    #[test]
+    fn tech_build_login_is_accepted_by_public_key() {
+        // só no build do técnico (FLOWX_TECH_KEY): a chave privada embutida casa com a pública dos clientes
+        if !is_tech_build() {
+            return;
+        }
+        let sig = sign_login("123456789", b"desafio").expect("build do técnico precisa assinar");
+        assert!(verify_login("123456789", b"desafio", &sig));
+        assert!(!verify_login("123456780", b"desafio", &sig));
+        assert!(!verify_login("123456789", b"outro", &sig));
     }
 }

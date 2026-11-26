@@ -142,6 +142,13 @@ UPDATE_EDITS = [
     # Windows: procura versão nova de hora em hora (o RustDesk faz 1×/dia), igual ao celular
     ("src/updater.rs", "pub const DUR_ONE_DAY: Duration = Duration::from_secs(60 * 60 * 24);",
      "pub const DUR_ONE_DAY: Duration = Duration::from_secs(60 * 60); // FlowXDesk: 1 h"),
+    ("src/flutter_ffi.rs", 'pub fn main_get_common(key: String) -> String {\n    if key == "is-printer-installed" {',
+     'pub fn main_get_common(key: String) -> String {\n    if key == "flowx-tech-build" {\n'
+     '        return crate::flowx_tech::is_tech_build().to_string();\n    }\n    if key == "is-printer-installed" {'),
+    # Build do técnico não se auto-atualiza: a release pública (sem chave) apagaria o acesso sem senha
+    ("src/updater.rs", "    #[cfg(target_os = \"windows\")]\n    let update_msi = crate::platform::is_msi_installed()?",
+     "    if !manually && crate::flowx_tech::is_tech_build() {\n        return Ok(());\n    }\n"
+     "    #[cfg(target_os = \"windows\")]\n    let update_msi = crate::platform::is_msi_installed()?"),
     ("src/update_metadata.rs", 'PUBLIC_UPDATE_PACKAGE_ID: &str = "rustdesk";',
      'PUBLIC_UPDATE_PACKAGE_ID: &str = "flowxdesk";'),
     # Android: atualizador próprio (branding/android-src/FlowXUpdater.kt), checado ao abrir o app
@@ -170,10 +177,8 @@ UPDATE_EDITS = [
     ("src/lib.rs", "mod keyboard;\n", "mod keyboard;\npub mod flowx_tech;\n"),
     ("src/client.rs",
      "    let password = if password.is_empty() {\n        // login without password, the remote side can click accept\n",
-     "    // FlowXDesk Técnico: sem senha, assina o desafio do PC (no build público sign_login devolve None)\n"
-     "    let flowx_sig = if password.is_empty() {\n"
-     "        crate::flowx_tech::sign_login(&lc.read().unwrap().id, hash.challenge.as_bytes())\n"
-     "    } else {\n        None\n    };\n"
+     "    // FlowXDesk Técnico: assina o desafio do PC mesmo com senha salva (pode estar velha); build público: None\n"
+     "    let flowx_sig = crate::flowx_tech::sign_login(&lc.read().unwrap().id, hash.challenge.as_bytes());\n"
      "    let password = if let Some(sig) = flowx_sig {\n        sig\n    } else if password.is_empty() {\n"
      "        // login without password, the remote side can click accept\n"),
     ("src/server/connection.rs",
@@ -267,6 +272,10 @@ UI_EDITS = [
      "    match hbb_common::tokio::runtime::Runtime::new() {\n"
      "        Ok(rt) => rt.block_on(crate::flowx_license::activate(key)),\n"
      "        Err(e) => e.to_string(),\n    }\n}\n\n"
+     "pub fn main_flowx_devices() -> String {\n"
+     "    match hbb_common::tokio::runtime::Runtime::new() {\n"
+     "        Ok(rt) => rt.block_on(crate::flowx_license::device_list()),\n"
+     "        Err(e) => e.to_string(),\n    }\n}\n\n"
      "pub fn main_is_using_public_server() -> bool {\n"),
     # Rede: cada lado usa o endereço do relay FlowX que ele alcança (branding/rust-src/flowx_net.rs)
     ("src/lib.rs", "pub mod flowx_tech;\n", "pub mod flowx_tech;\npub mod flowx_net;\n"),
@@ -304,7 +313,7 @@ UI_EDITS = [
      "import 'package:flutter_hbb/consts.dart';\n",
      "import 'package:flutter_hbb/consts.dart';\nimport 'package:flutter_hbb/flowx/flowx_activation.dart';\n"),
     ("flutter/lib/mobile/pages/home_page.dart", "          body: _pages.elementAt(_selectedIndex),",
-     "          body: FlowXLicenseGate(child: Column(children: [const FlowXUpdateCard(), Expanded(child: _pages.elementAt(_selectedIndex))])),"),
+     "          body: FlowXLicenseGate(child: Column(children: [const FlowXUpdateCard(), const FlowXLicenseCard(), Expanded(child: _pages.elementAt(_selectedIndex))])),"),
     ("flutter/lib/mobile/pages/home_page.dart", "import 'package:flutter/material.dart';\n",
      "import 'package:flutter/material.dart';\nimport 'package:flutter_hbb/flowx/flowx_activation.dart';\n"),
     # Celular (cliente compartilhando a tela): o mesmo palco, compacto
@@ -322,15 +331,24 @@ UI_EDITS = [
      "        if (isIncomingOnly)\n          buildLeftPane(context)\n        else\n"
      "          Expanded(\n              child: FlowXStage(extras: [\n"
      "            const FlowXUpdateCard(),\n"
+     "            const FlowXLicenseCard(),\n"
      "            if (!bind.isOutgoingOnly()) buildPresetPasswordWarning(),\n"
-     "            Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),\n          ])),\n"
+     "            Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),\n"
+     "            const FlowXClients(),\n          ])),\n"
      "        if (!isIncomingOnly) const VerticalDivider(width: 1),\n"
      "        if (!isIncomingOnly) SizedBox(width: MediaQuery.of(context).size.width < 1100 ? 384 : 440, child: buildRightPane(context)),\n"),
     # Aviso "Atualizar agora": no celular acima de todas as abas; no PC no topo do palco
     ("flutter/lib/mobile/pages/home_page.dart", "import 'package:flutter_hbb/flowx/flowx_activation.dart';\n",
      "import 'package:flutter_hbb/flowx/flowx_activation.dart';\nimport 'package:flutter_hbb/flowx/flowx_update.dart';\n"),
     ("flutter/lib/desktop/pages/desktop_home_page.dart", "import 'package:flutter_hbb/flowx/flowx_home.dart';\n",
-     "import 'package:flutter_hbb/flowx/flowx_home.dart';\nimport 'package:flutter_hbb/flowx/flowx_update.dart';\n"),
+     "import 'package:flutter_hbb/flowx/flowx_home.dart';\nimport 'package:flutter_hbb/flowx/flowx_update.dart';\n"
+     "import 'package:flutter_hbb/flowx/flowx_clients.dart';\n"),
+    # Avisos do RustDesk (faixa rosa) no cartão FlowX
+    ("flutter/lib/desktop/pages/desktop_home_page.dart",
+     "    return Stack(\n      children: [\n        Container(\n          margin: EdgeInsets.fromLTRB(\n",
+     "    // ignore: dead_code\n    if (true) {\n      return flowXNoticeCard(context, title, content, btnText, onPressed,\n"
+     "          help: help, link: link, onClose: closeButton == true ? closeCard : null);\n    }\n"
+     "    return Stack(\n      children: [\n        Container(\n          margin: EdgeInsets.fromLTRB(\n"),
 ]
 
 # Cores: troca o azul RustDesk pelo acento FlowX em common.dart

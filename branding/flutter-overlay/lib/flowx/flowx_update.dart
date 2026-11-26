@@ -46,6 +46,8 @@ class _FlowXUpdateCardState extends State<FlowXUpdateCard> {
 
   Future<void> _fetch() async {
     try {
+      // build do técnico: atualizar para a release pública apagaria o acesso sem senha
+      if (await bind.mainGetCommon(key: 'flowx-tech-build') == 'true') return;
       final r = await http.get(Uri.parse(_metaUrl)).timeout(const Duration(seconds: 20));
       if (r.statusCode != 200) return;
       final m = jsonDecode(r.body) as Map<String, dynamic>;
@@ -92,38 +94,67 @@ class _FlowXUpdateCardState extends State<FlowXUpdateCard> {
   @override
   Widget build(BuildContext context) {
     if (_latest == null) return const SizedBox.shrink();
-    final dark = FlowX.isDark(context);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: dark ? FlowX.surface : FlowX.paper,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: FlowX.champagneStrong.withOpacity(0.6)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('ATUALIZAÇÃO DISPONÍVEL',
-            style: TextStyle(
-                fontFamily: FlowX.sans, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1.6, color: FlowX.accentText(context))),
+    return _card(context, 'ATUALIZAÇÃO DISPONÍVEL', 'FlowXDesk $_latest (você tem $version)', _status,
+        _busy ? null : _update, 'Atualizar agora', busy: _busy);
+  }
+}
+
+/// Avisos do RustDesk (instalar, versão desatualizada, permissões) no visual FlowX.
+Widget flowXNoticeCard(BuildContext context, String title, String content, String btnText, VoidCallback onPressed,
+    {String? help, String? link, VoidCallback? onClose}) {
+  final label = title.isEmpty ? 'AVISO' : translate(title).toUpperCase();
+  return _card(context, label, translate(content), '', onPressed, btnText.isEmpty ? null : translate(btnText),
+      help: help == null ? null : translate(help), link: link, onClose: onClose);
+}
+
+Widget _card(BuildContext context, String label, String text, String status, VoidCallback? onPressed, String? btn,
+    {bool busy = false, String? help, String? link, VoidCallback? onClose}) {
+  final dark = FlowX.isDark(context);
+  return Container(
+    margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: dark ? FlowX.surface : FlowX.paper,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: FlowX.champagneStrong.withOpacity(0.6)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(
+          child: Text(label,
+              style: TextStyle(
+                  fontFamily: FlowX.sans, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1.6, color: FlowX.accentText(context))),
+        ),
+        if (onClose != null)
+          IconButton(
+              tooltip: translate('Close'),
+              visualDensity: VisualDensity.compact,
+              onPressed: onClose,
+              icon: Icon(Icons.close, size: 18, color: FlowX.muted(context))),
+      ]),
+      if (text.isNotEmpty) ...[
         const SizedBox(height: 6),
-        Text('FlowXDesk $_latest (você tem $version)',
-            style: TextStyle(fontFamily: FlowX.sans, fontSize: 16, color: dark ? FlowX.textOnDark : FlowX.ink)),
-        if (_status.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(_status, style: TextStyle(fontFamily: FlowX.sans, color: FlowX.muted(context))),
-        ],
+        Text(text, style: TextStyle(fontFamily: FlowX.sans, fontSize: 16, height: 1.4, color: dark ? FlowX.textOnDark : FlowX.ink)),
+      ],
+      if (status.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        Text(status, style: TextStyle(fontFamily: FlowX.sans, color: FlowX.muted(context))),
+      ],
+      if (btn != null) ...[
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: _busy ? null : _update,
-            child: _busy
+            onPressed: onPressed,
+            child: busy
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4))
-                : const Text('Atualizar agora'),
+                : Text(btn),
           ),
         ),
-      ]),
-    );
-  }
+      ],
+      if (help != null && link != null)
+        TextButton(onPressed: () => launchUrl(Uri.parse(link)), child: Text(help)),
+    ]),
+  );
 }
