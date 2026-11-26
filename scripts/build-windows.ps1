@@ -20,7 +20,9 @@ $env:LIBCLANG_PATH = "$Tools\llvm\bin"
 $env:VCPKG_ROOT = "$Tools\vcpkg"
 $env:CARGO_BUILD_JOBS = "$Jobs"     # limita CPU/RAM (VM de produção no mesmo host)
 $env:PYTHONIOENCODING = 'utf-8'
-if ($Tecnico) { $env:FLOWX_TECH_KEY = (Get-Content $TechKeyFile -Raw).Trim() } else { Remove-Item Env:FLOWX_TECH_KEY -ErrorAction SilentlyContinue }
+# Desde a 1.5.11 não existe build do técnico: a chave fica em %ProgramData%\FlowXDesk\tecnico.key no PC dele (scripts\instalar-chave-tecnico.ps1).
+if ($Tecnico) { throw '-Tecnico não existe mais: use o instalador público + scripts\instalar-chave-tecnico.ps1 no PC do técnico.' }
+Remove-Item Env:FLOWX_TECH_KEY -ErrorAction SilentlyContinue
 $env:PUB_CACHE = "$Tools\pub-cache"   # fora do AppData: o terminal do Claude vê um AppData virtual que o compilador do Flutter não enxerga
 
 python -I "$Root\scripts\brand.py" $Src; Assert-Ok 'brand.py'

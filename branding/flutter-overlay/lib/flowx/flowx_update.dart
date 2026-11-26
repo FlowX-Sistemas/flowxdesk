@@ -46,8 +46,6 @@ class _FlowXUpdateCardState extends State<FlowXUpdateCard> {
 
   Future<void> _fetch() async {
     try {
-      // build do técnico: atualizar para a release pública apagaria o acesso sem senha
-      if (await bind.mainGetCommon(key: 'flowx-tech-build') == 'true') return;
       final r = await http.get(Uri.parse(_metaUrl)).timeout(const Duration(seconds: 20));
       if (r.statusCode != 200) return;
       final m = jsonDecode(r.body) as Map<String, dynamic>;

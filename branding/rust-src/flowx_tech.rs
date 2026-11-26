@@ -1,7 +1,8 @@
 // FlowXDesk: acesso de técnico FlowX sem senha (copiado por scripts/brand.py para src/flowx_tech.rs).
 //
-// O cliente público só tem a chave PÚBLICA. O FlowXDesk Técnico (build interno, nunca publicado) é
-// compilado com FLOWX_TECH_KEY (chave privada) e, quando não há senha, manda no campo de senha do login
+// O app só tem a chave PÚBLICA. No PC do técnico a chave privada fica em %ProgramData%\FlowXDesk\tecnico.key
+// (só leitura para o técnico e admins); com ela o mesmo instalador público vira técnico e se atualiza
+// sozinho como os outros. Quando há o arquivo, o app manda no campo de senha do login
 // uma assinatura ed25519 de (contexto + ID do PC + desafio aleatório da conexão). O PC confere a
 // assinatura: sem segredo no instalador público, e assinatura capturada não serve de novo (desafio muda).
 use hbb_common::{
@@ -50,12 +51,12 @@ pub fn verify_login(my_id: &str, challenge: &[u8], sig: &[u8]) -> bool {
     ok
 }
 
-/// Lado do técnico: assinatura para o PC `peer_id`. None no build público (sem FLOWX_TECH_KEY).
+/// Lado do técnico: assinatura para o PC `peer_id`. None se este PC não tiver a chave do técnico.
 pub fn sign_login(peer_id: &str, challenge: &[u8]) -> Option<Vec<u8>> {
     if let Some(p) = crate::flowx_license::tech_proof(peer_id, challenge) {
         return Some(p); // licença de técnico do Hub tem prioridade
     }
-    let key = STANDARD.decode(option_env!("FLOWX_TECH_KEY")?.trim()).ok()?;
+    let key = STANDARD.decode(tech_key_b64()?.trim()).ok()?;
     if key.len() != 64 || peer_id.is_empty() || challenge.is_empty() {
         return None;
     }
@@ -66,8 +67,19 @@ pub fn sign_login(peer_id: &str, challenge: &[u8]) -> Option<Vec<u8>> {
     Some(sign_detached(&message(peer_id, challenge), &SecretKey(k)).to_bytes().to_vec())
 }
 
+/// Chave privada do técnico, se este PC for de técnico.
+fn tech_key_b64() -> Option<String> {
+    #[cfg(windows)]
+    {
+        let dir = std::env::var("ProgramData").ok()?;
+        return std::fs::read_to_string(std::path::Path::new(&dir).join("FlowXDesk").join("tecnico.key")).ok();
+    }
+    #[cfg(not(windows))]
+    None
+}
+
 pub fn is_tech_build() -> bool {
-    option_env!("FLOWX_TECH_KEY").is_some()
+    tech_key_b64().is_some()
 }
 
 #[cfg(test)]
@@ -87,7 +99,7 @@ mod tests {
 
     #[test]
     fn tech_build_login_is_accepted_by_public_key() {
-        // só no build do técnico (FLOWX_TECH_KEY): a chave privada embutida casa com a pública dos clientes
+        // só no PC do técnico (tecnico.key): a chave privada casa com a pública embutida nos clientes
         if !is_tech_build() {
             return;
         }

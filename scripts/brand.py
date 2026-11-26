@@ -145,10 +145,6 @@ UPDATE_EDITS = [
     ("src/flutter_ffi.rs", 'pub fn main_get_common(key: String) -> String {\n    if key == "is-printer-installed" {',
      'pub fn main_get_common(key: String) -> String {\n    if key == "flowx-tech-build" {\n'
      '        return crate::flowx_tech::is_tech_build().to_string();\n    }\n    if key == "is-printer-installed" {'),
-    # Build do técnico não se auto-atualiza: a release pública (sem chave) apagaria o acesso sem senha
-    ("src/updater.rs", "    #[cfg(target_os = \"windows\")]\n    let update_msi = crate::platform::is_msi_installed()?",
-     "    if !manually && crate::flowx_tech::is_tech_build() {\n        return Ok(());\n    }\n"
-     "    #[cfg(target_os = \"windows\")]\n    let update_msi = crate::platform::is_msi_installed()?"),
     ("src/update_metadata.rs", 'PUBLIC_UPDATE_PACKAGE_ID: &str = "rustdesk";',
      'PUBLIC_UPDATE_PACKAGE_ID: &str = "flowxdesk";'),
     # Android: atualizador próprio (branding/android-src/FlowXUpdater.kt), checado ao abrir o app
@@ -350,6 +346,12 @@ UI_EDITS = [
     ("flutter/lib/desktop/pages/desktop_home_page.dart", "import 'package:flutter_hbb/flowx/flowx_home.dart';\n",
      "import 'package:flutter_hbb/flowx/flowx_home.dart';\nimport 'package:flutter_hbb/flowx/flowx_update.dart';\n"
      "import 'package:flutter_hbb/flowx/flowx_clients.dart';\n"),
+    # Janelinha de carregamento do instalador: cores FlowX e rótulo mais largo
+    ("libs/portable/src/ui.rs", "const BG_COLOR: [u8; 3] = [90, 90, 120];\nconst BORDER_COLOR: [u8; 3] = [40, 40, 40];",
+     "const BG_COLOR: [u8; 3] = [23, 22, 26];\nconst BORDER_COLOR: [u8; 3] = [185, 143, 69];"),
+    ("libs/portable/src/ui.rs", "            let col_cnt: i32 = 7;", "            let col_cnt: i32 = 10;"),
+    ("libs/portable/src/ui.rs", "GridLayoutItem::new(&ui.gif_image, 2, 1, 1, 1))\n                .child_item(GridLayoutItem::new(&ui.label_image, 3, 1, 3, 1))",
+     "GridLayoutItem::new(&ui.gif_image, 1, 1, 1, 1))\n                .child_item(GridLayoutItem::new(&ui.label_image, 2, 1, 7, 1))"),
     # Avisos do RustDesk (faixa rosa) no cartão FlowX
     ("flutter/lib/desktop/pages/desktop_home_page.dart",
      "    return Stack(\n      children: [\n        Container(\n          margin: EdgeInsets.fromLTRB(\n",
@@ -457,6 +459,8 @@ def main():
     for f in (ASSETS / "fonts").glob("*.ttf"):
         shutil.copyfile(f, SRC / "flutter/assets/fonts" / f.name)
     print("[ui] flowx/*.dart + fontes")
+    for f in ("spin.gif", "label.png"):  # janelinha "Abrindo o FlowXDesk…" do instalador
+        shutil.copyfile(ASSETS / "portable-res" / f, SRC / "libs/portable/src/res" / f)
     rs = (ASSETS / "rust-src" / "flowx_tech.rs").read_text(encoding="utf-8")
     shutil.copyfile(ASSETS / "rust-src" / "flowx_net.rs", SRC / "src/flowx_net.rs")
     lic = (ASSETS / "rust-src" / "flowx_license.rs").read_text(encoding="utf-8")
