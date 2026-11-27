@@ -64,7 +64,10 @@ fn set_opt(k: &str, v: String) {
     if crate::is_server() {
         Config::set_option(k.to_owned(), v);
     } else {
-        crate::ui_interface::set_option(k.to_owned(), v);
+        // ui_interface::set_option chama ipc::set_options (#[tokio::main]); dentro do block_on da ativação
+        // isso dá panic "runtime dentro de runtime" e fecha o app. Numa thread própria não há runtime ativo.
+        let k = k.to_owned();
+        let _ = std::thread::spawn(move || crate::ui_interface::set_option(k, v)).join();
     }
 }
 
@@ -346,6 +349,14 @@ pub fn verify_tech_proof(my_id: &str, challenge: &[u8], proof: &[u8]) -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // regressão 1.5.11: gravar opção dentro do runtime da ativação fechava o app (panic de runtime aninhado)
+    #[test]
+    fn flowx_set_opt_inside_runtime_does_not_panic() {
+        hbb_common::tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { set_opt("flowx-test-opt", String::new()) });
+    }
 
     fn cert_for(hub: &SecretKey, typ: &str, dev: &str, pk: &[u8], exp: i64) -> String {
         let payload = json!({"v":1,"lic":"l1","type":typ,"org":"FlowX","tech":"Ana","dev":dev,
