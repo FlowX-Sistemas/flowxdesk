@@ -24,12 +24,30 @@ class FlowXLicenseGate extends StatefulWidget {
 }
 
 class _FlowXLicenseGateState extends State<FlowXLicenseGate> {
-  late bool _ok = flowxLicenseStatus()['ok'] == true;
+  late final Map<String, dynamic> _s = flowxLicenseStatus();
+  late final bool _needs = _s['enabled'] == true && _s['licensed'] != true;
+  // período de carência (status ok sem licença): a tela abre, mas dá para pular nesta abertura
+  late final bool _canSkip = _s['ok'] == true;
+  // na carência mostra o app até saber que não é técnico (evita piscar a tela no PC do técnico);
+  // com bloqueio mostra a tela até saber que é técnico
+  late bool _ok = !_needs || _canSkip;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_needs) return;
+    bind.mainGetCommon(key: 'flowx-tech-build').then((v) {
+      if (mounted) setState(() => _ok = v == 'true');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     if (_ok) return widget.child;
-    return FlowXActivation(onActivated: () => setState(() => _ok = true));
+    return FlowXActivation(
+      onActivated: () => setState(() => _ok = true),
+      onCancel: _canSkip ? () => setState(() => _ok = true) : null,
+    );
   }
 }
 
@@ -69,6 +87,7 @@ class _FlowXLicenseCardState extends State<FlowXLicenseCard> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: FlowXActivation(
+            compact: true,
             onCancel: () => Navigator.of(ctx).pop(),
             onActivated: () {
               Navigator.of(ctx).pop();
@@ -107,10 +126,12 @@ class _FlowXLicenseCardState extends State<FlowXLicenseCard> {
 }
 
 class FlowXActivation extends StatefulWidget {
-  const FlowXActivation({super.key, required this.onActivated, this.onCancel});
+  const FlowXActivation({super.key, required this.onActivated, this.onCancel, this.compact = false});
   final VoidCallback onActivated;
-  /// Na janela do período de carência: mostra "Agora não" e encolhe ao conteúdo.
+  /// Período de carência: mostra "Agora não".
   final VoidCallback? onCancel;
+  /// Dentro de uma janela: encolhe ao conteúdo.
+  final bool compact;
 
   @override
   State<FlowXActivation> createState() => _FlowXActivationState();
@@ -145,7 +166,7 @@ class _FlowXActivationState extends State<FlowXActivation> {
   @override
   Widget build(BuildContext context) {
     final dark = FlowX.isDark(context);
-    final inDialog = widget.onCancel != null;
+    final inDialog = widget.compact;
     final content = Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Image.asset('assets/icon.png', width: 64, height: 64),
               const SizedBox(height: 24),
@@ -189,7 +210,7 @@ class _FlowXActivationState extends State<FlowXActivation> {
                   child: Text('Não tem a chave? Fale com o suporte da FlowX.',
                       style: TextStyle(fontFamily: FlowX.sans, color: FlowX.muted(context))),
                 ),
-                if (inDialog) TextButton(onPressed: widget.onCancel, child: const Text('Agora não')),
+                if (widget.onCancel != null) TextButton(onPressed: widget.onCancel, child: const Text('Agora não')),
               ]),
             ]);
     return Material(
