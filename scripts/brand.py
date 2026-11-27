@@ -139,6 +139,9 @@ UPDATE_EDITS = [
      f"public_key: {UPDATE_PUBLIC_KEY},\n}}, TrustedUpdateKey {{\n    key_id: \"{UPDATE_KEY_ID_NEXT}\",\n"
      f"    algorithm: SIGNATURE_ALGORITHM,\n    public_key: {UPDATE_PUBLIC_KEY_NEXT},\n}}];"),
     ("src/update_metadata.rs", 'const UPDATE_APP: &str = "rustdesk";', 'const UPDATE_APP: &str = "flowxdesk";'),
+    # "Sair" da bandeja só fecha o ícone: no RustDesk ele para o serviço e o técnico perde o acesso ao cliente
+    ("src/tray.rs", "                    if !crate::platform::uninstall_service(false, false) {\n                        *control_flow = ControlFlow::Exit;\n                    }",
+     "                    // FlowXDesk: não para o serviço (cliente fecha o ícone sem cortar o acesso remoto)\n                    *control_flow = ControlFlow::Exit;"),
     # Windows: procura versão nova de hora em hora (o RustDesk faz 1×/dia), igual ao celular
     ("src/updater.rs", "pub const DUR_ONE_DAY: Duration = Duration::from_secs(60 * 60 * 24);",
      "pub const DUR_ONE_DAY: Duration = Duration::from_secs(60 * 60); // FlowXDesk: 1 h"),
