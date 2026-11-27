@@ -96,6 +96,13 @@ def main():
     (out / "flowxdesk-version.json").write_text(json.dumps(
         {"url": f"https://github.com/{OWNER}/{REPO}/releases/tag/{v}"}))
     files += [out / "flowxdesk-update.json", out / "flowxdesk-update.json.sig", out / "flowxdesk-version.json"]
+    # nomes fixos para o link de download do site/README (releases/latest/download/<nome>), fora do manifesto.
+    # "-install.exe": o empacotador abre direto na instalação e sempre reextrai (sem cópia velha em cache).
+    shutil.copyfile(out / exe_name, out / "FlowXDesk-install.exe")
+    files.append(out / "FlowXDesk-install.exe")
+    if a.apk:
+        shutil.copyfile(out / apk_name, out / "FlowXDesk.apk")
+        files.append(out / "FlowXDesk.apk")
     for f in files:
         print(f"  {f.name}  {f.stat().st_size} bytes")
     if a.dry_run:
