@@ -152,6 +152,8 @@ class FlowXStage extends StatelessWidget {
         // janela pequena (padrão do Windows ~800 px): tudo mais enxuto, sem rolagem
         final small = compact || MediaQuery.of(context).size.width < 1100;
         return Container(
+          // a Row da home alinha no topo: sem isso o fundo para no fim do conteúdo (janela maximizada)
+          height: compact ? null : double.infinity,
           decoration: BoxDecoration(
             gradient: RadialGradient(
               center: const Alignment(-0.4, -0.2),
